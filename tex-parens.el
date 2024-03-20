@@ -311,8 +311,7 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
                 (when tex-parens--debug
                   (unless (equal other (car stack))
                     (message "Mismatched delimiters: %s %s" delim (car stack))))
-                (pop stack)
-                (setq success t))
+                (pop stack))
             (setq success t))
           ;; (push delim stack))
           
@@ -399,7 +398,10 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
     (tex-parens-basic-backward)
     (delete-region (point) q)))
 
-;; it shouldn't be necessary to define any of the following, but for some reason why I set forward-sexp-function to tex-parens-forward-sexp, Emacs freezes up.  so we'll just do things ad hoc for now
+;; it shouldn't be necessary to define any of the following -- it
+;; should suffice to set forward-sexp-function to
+;; tex-parens-forward-sexp -- but for some reason, Emacs freezes when
+;; I do so.  whatever.  the ad hoc solution works fine
 
 (defun tex-parens-mark-sexp (&optional arg allow-extend)
   "Set mark ARG sexps from point or move mark one sexp.
