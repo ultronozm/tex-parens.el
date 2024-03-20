@@ -24,7 +24,7 @@
 ;; tailored to my use cases
 ;; (cf. https://github.com/Fuco1/smartparens/issues/1193).
 ;;
-;; Work in progress.  TODO: support begin/end, sexp commands
+;; Work in progress.  TODO: sexp commands
 
 ;;; Code:
 
@@ -52,8 +52,7 @@
     ("\\left\\lVert" . "\\right\\rVert")
     ("\\left|" . "\\right|")
     ("$" . "$")
-    ("``" . "''")
-    ("\\begin{.*}" . "''")))
+    ("``" . "''")))
 
 (defun tex-parens-open ()
   (mapcar #'car tex-parens-pairs))
@@ -63,6 +62,14 @@
 
 (defun tex-parens-delims ()
   (append (tex-parens-open) (tex-parens-close)))
+
+(defun tex-parens-regexp ()
+  (concat (regexp-opt (tex-parens-delims))
+          "\\|\\\\begin{[^}]+}\\|\\\\end{[^}]+}"))
+
+(defun tex-parens-reverse-regexp ()
+  (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
+          (regexp-opt (mapcar #'reverse (tex-parens-delims)))))
 
 (defun tex-parens-bound-default-forward ()
   (save-excursion
@@ -79,20 +86,38 @@
 (defun tex-parens-basic-forward (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
-  (when (re-search-forward (regexp-opt (tex-parens-delims))
-                           bound t)
+  (when (re-search-forward (tex-parens-regexp) bound t)
     (match-string 0)))
 
 (defun tex-parens-basic-backward (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-backward)))
-  (greedy-search-list-backward (tex-parens-delims) bound))
+  (let* ((text (buffer-substring-no-properties bound (point)))
+         match result)
+    (with-temp-buffer
+      (insert (reverse text))
+      (goto-char (point-min))
+      (setq result (re-search-forward (tex-parens-reverse-regexp) nil t))
+      (when result (setq match (match-string 0))))
+    (when result
+      (backward-char (1- result))
+      (reverse match))))
 
 (defun tex-parens-is-open (delim)
-  (cdr (assoc delim tex-parens-pairs)))
+  (or
+   (cdr (assoc delim tex-parens-pairs))
+   (and (stringp delim)
+        (string-match "\\\\begin{\\([^}]+\\)}" delim)
+        (let ((type (match-string 1 delim)))
+          (format "\\end{%s}" type)))))
 
 (defun tex-parens-is-close (delim)
-  (cdr (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs))))
+  (or
+   (cdr (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs)))
+   (and (stringp delim)
+        (string-match "\\\\end{\\([^}]+\\)}" delim)
+        (let ((type (match-string 1 delim)))
+          (format "\\begin{%s}" type)))))
 
 (defun tex-parens-face-mathy ()
   (let ((face (plist-get (text-properties-at (point))
@@ -115,32 +140,19 @@
          (and (not (equal delim "$"))
               (tex-parens-is-open delim)))   ; Opening delimiter
         (push delim stack))
-       ((cdr (tex-parens-delim-pair delim))   ; Closing delimiter
-        (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
-            (pop stack)
-          (backward-char (length delim))
-          ;; (push (cdr (tex-parens-delim-pair delim)) stack)
-          )))
+       (t
+        (let ((other (tex-parens-is-close delim)))
+          (cl-assert other)
+          (if (equal other (car stack))
+              (pop stack)
+            (backward-char (length delim))
+            ;; (push (cdr (tex-parens-delim-pair delim)) stack)
+            ))))
       (setq delim (and stack (tex-parens-basic-forward bound))))))
 
-(defun greedy-search-list-backward (lst &optional bound noerror count)
-  "Search backward for REGEXP, return t if found, nil otherwise."
-  (unless bound (setq bound (tex-parens-bound-default-backward)))
-  (let* ((text (buffer-substring-no-properties bound (point)))
-         match result)
-    (with-temp-buffer
-      (insert (reverse text))
-      (goto-char (point-min))
-      (setq result (re-search-forward (regexp-opt (mapcar #'reverse lst)) nil t))
-      (when result
-        (setq match (match-string 0))))
-    (when result
-      (backward-char (1- result))
-      (reverse match))))
-
-(defun tex-parens-delim-pair (delim)
-  (or (assoc delim tex-parens-pairs)
-      (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs))))
+;; (defun tex-parens-delim-pair (delim)
+;;   (or (assoc delim tex-parens-pairs)
+;;       (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs))))
 
 (defun tex-parens-backward (&optional bound)
   "Find previous TeX sexp. Moves point to start of sexp."
@@ -158,10 +170,21 @@
          (and (not (equal delim "$"))
               (tex-parens-is-close delim)))
         (push delim stack))
-       ((assoc delim tex-parens-pairs)  ; Opening delimiter
-        (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
-            (pop stack)
-          (forward-char (length delim))))
+       (
+        t
+        (let ((other (tex-parens-is-open delim)))
+          (cl-assert other)
+          (if (equal other (car stack))
+              (pop stack)
+            (forward-char (length delim))
+            ;; (push delim stack)
+            ))
+        ;; (assoc delim tex-parens-pairs)
+                                        ; Opening delimiter
+        ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
+        ;;     (pop stack)
+        ;;   (forward-char (length delim)))
+        )
        )
       (setq delim (and stack (tex-parens-basic-backward bound))))))
 
@@ -184,10 +207,18 @@
          (and (not (equal delim "$"))
               (tex-parens-is-close delim)))
         (push delim stack))
-       ((assoc delim tex-parens-pairs)  ; Opening delimiter
-        (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
-            (pop stack)
-          (setq success t)))
+       (t
+        (let ((other (tex-parens-is-open delim)))
+          (cl-assert other)
+          (if (equal other (car stack))
+              (pop stack)
+            (setq success t)))
+        ;; (assoc delim tex-parens-pairs)
+                                        ; Opening delimiter
+        ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
+        ;;     (pop stack)
+        ;;   (setq success t))
+        )
        )
       (setq delim (and (not success) (tex-parens-basic-backward bound))))
     (unless success
@@ -209,10 +240,18 @@
          (and (not (equal delim "$"))
               (tex-parens-is-open delim)))
         (push delim stack))
-       ((cdr (tex-parens-delim-pair delim))  ; Closing delimiter
-        (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
-            (pop stack)
-          (setq success t)))
+       (t
+        (let ((other (tex-parens-is-close delim)))
+          (cl-assert other)
+          (if (equal other (car stack))
+              (pop stack)
+            (setq success t)))
+        ;; (cdr (tex-parens-delim-pair delim))
+                                        ; Closing delimiter
+        ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
+        ;;     (pop stack)
+        ;;   (setq success t))
+        )
        )
       (setq delim (and (not success) (tex-parens-basic-forward bound))))
     (unless success
