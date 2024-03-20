@@ -24,26 +24,76 @@
 ;; tailored to my use cases
 ;; (cf. https://github.com/Fuco1/smartparens/issues/1193).
 ;;
-;; Work in progress.  TODO: sexp commands
+;; Work in progress, I guess
 
 ;;; Code:
 
 (defun tex-parens-setup ()
+  "Hook function for LaTeX-mode that sets up tex-parens."
   (setq
    preview-auto-reveal
    '(eval (preview-arrived-via (key-binding [left])
                                (key-binding [right])
                                #'backward-char #'forward-char #'tex-parens-down)))
-  (setq-local beginning-of-defun-function #'tex-parens-beginning-of-defun)
-  (setq-local end-of-defun-function #'tex-parens-end-of-defun))
+  (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
+  (setq-local end-of-defun-function #'tex-parens--end-of-defun)
+  (setq-local forward-sexp-function #'tex-parens--forward-sexp-with-arg))
 
-(defun tex-parens-beginning-of-defun ()
+(defun tex-parens--beginning-of-defun ()
   (interactive)
   (re-search-backward "^\\\\begin{[^}]+}" nil t))
 
-(defun tex-parens-end-of-defun ()
+(defun tex-parens--end-of-defun ()
   (interactive)
   (re-search-forward "^\\\\end{[^}]+}\n" nil t))
+
+(defun tex-parens--forward-sexp-with-arg (&optional arg)
+  "Function to use as `forward-sexp-function' in LaTeX-mode."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (while (> arg 0)
+    (tex-parens--forward-sexp)
+    (setq arg (1- arg)))
+  (while (< arg 0)
+    (tex-parens--backward-sexp)
+    (setq arg (1+ arg))))
+
+(defun tex-parens--forward-sexp ()
+  "Internal forward-sexp function.
+This function is a wrapper around `forward-sexp' that uses
+tex-parens to identify the next delimiter.  If `forward-sexp'
+does not take us past the starting point of the next delimiter, then
+do that.  Otherwise, do `tex-parens-forward'."
+  (let ((delim-beg (save-excursion
+                     (tex-parens-basic-forward)
+                     (match-beginning 0)))
+        (vanilla (save-excursion
+                   (let ((forward-sexp-function nil))
+                     (forward-sexp)
+                     (point)))))
+    (if (and delim-beg
+             (>= vanilla delim-beg))
+        (tex-parens-forward)
+      (goto-char vanilla))))
+
+(defun tex-parens--backward-sexp ()
+  "Internal `backward-sexp' function.
+This function is a wrapper around `backward-sexp' that uses
+tex-parens to identify the previous delimiter.  If `backward-sexp'
+does not take us beyond the ending point of the previous
+delimiter, then do that.  Otherwise, do `tex-parens-backward'."
+  (let ((delim-end (save-excursion
+                     (when-let ((delim (tex-parens-basic-backward)))
+                       (forward-char (length delim))
+                       (point))))
+        (vanilla (save-excursion
+                   (let ((forward-sexp-function nil))
+                     (backward-sexp)
+                     (point)))))
+    (if (and delim-end
+             (<= vanilla delim-end))
+        (tex-parens-backward)
+      (goto-char vanilla))))
 
 (defvar tex-parens-pairs
   '(("(" . ")")
