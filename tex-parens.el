@@ -33,7 +33,7 @@
    preview-auto-reveal
    '(eval (preview-arrived-via (key-binding [left])
                                (key-binding [right])
-                               #'backward-char #'forward-char #'czm-tex-sexp-down))))
+                               #'backward-char #'forward-char #'tex-parens-down))))
 
 (defvar tex-parens-pairs
   '(("(" . ")")
