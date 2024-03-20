@@ -20,11 +20,32 @@
 
 ;;; Commentary:
 
-;; This package provides sexp and list-based navigation for tex modes,
-;; tailored to my use cases
+;; This package provides sexp and list-based navigation, much like
+;; those in lisp.el, but for tex modes, tailored to my use cases
 ;; (cf. https://github.com/Fuco1/smartparens/issues/1193).
+
+;; Sample configuration:
 ;;
-;; Work in progress, I guess
+;; (use-package tex-parens
+;;   :ensure (:host github :repo "ultronozm/tex-parens.el"
+;;                  :depth nil)
+;;   :bind
+;;   (:map LaTeX-mode-map
+;;         ("C-M-f" . tex-parens-forward-sexp)
+;;         ("C-M-b" . tex-parens-backward-sexp)
+;;         ("C-M-n" . tex-parens-forward)
+;;         ("C-M-p" . tex-parens-backward)
+;;         ("C-M-u" . tex-parens-backward-up)
+;;         ("M-u" . tex-parens-up)
+;;         ("C-M-g" . tex-parens-down)
+;;         ("M-_" . tex-parens-delete-pair)
+;;         ("C-M-SPC" . tex-parens-mark-sexp)
+;;         ("C-M-k" . tex-parens-kill-sexp)
+;;         ("C-M-t" . tex-parens-transpose-sexps)
+;;         ("C-M-<backspace>" . tex-parens-backward-kill-sexp)
+;;         ("M-+" . tex-parens-raise-sexp))
+;;   :hook
+;;   (LaTeX-mode . tex-parens-setup))
 
 ;;; Code:
 
@@ -37,7 +58,8 @@
                                #'backward-char #'forward-char #'tex-parens-down)))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
   (setq-local end-of-defun-function #'tex-parens--end-of-defun)
-  ;; (setq-local forward-sexp-function #'tex-parens--forward-sexp-with-arg)
+  ;; don't know why, but this freezes Emacs:
+  ;; (setq-local forward-sexp-function #'tex-parens-forward-sexp)
   )
 
 (defun tex-parens--beginning-of-defun ()
@@ -48,18 +70,18 @@
   (interactive)
   (re-search-forward "^\\\\end{[^}]+}\n" nil t))
 
-(defun tex-parens--forward-sexp-with-arg (&optional arg)
+(defun tex-parens-forward-sexp (&optional arg)
   "Function to use as `forward-sexp-function' in LaTeX-mode."
   (interactive "^p")
   (or arg (setq arg 1))
   (while (> arg 0)
-    (tex-parens-forward-sexp)
+    (tex-parens-forward-sexp-1)
     (setq arg (1- arg)))
   (while (< arg 0)
     (tex-parens-backward-sexp)
     (setq arg (1+ arg))))
 
-(defun tex-parens-forward-sexp ()
+(defun tex-parens-forward-sexp-1 ()
   "Internal forward-sexp function.
 This function is a wrapper around `forward-sexp' that uses
 tex-parens to identify the next delimiter.  If `forward-sexp'
@@ -70,9 +92,8 @@ do that.  Otherwise, do `tex-parens-forward'."
                      (tex-parens-basic-forward)
                      (match-beginning 0)))
         (vanilla (save-excursion
-                   (let ((forward-sexp-function nil))
-                     (forward-sexp)
-                     (point)))))
+                   (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
+                   (point))))
     (if (and delim-beg
              (>= vanilla delim-beg))
         (tex-parens-forward)
@@ -90,9 +111,9 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
                        (forward-char (length delim))
                        (point))))
         (vanilla (save-excursion
-                   (let ((forward-sexp-function nil))
-                     (backward-sexp)
-                     (point)))))
+                   (goto-char (or (scan-sexps (point) -1) (buffer-end -1)))
+                   (backward-prefix-chars)
+                   (point))))
     (if (and delim-end
              (<= vanilla delim-end))
         (tex-parens-backward)
@@ -114,6 +135,7 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
     ("\\lVert" . "\\rVert")
     ("\\left\\lVert" . "\\right\\rVert")
     ("\\left|" . "\\right|")
+    ("\\left." . "\\right.")
     ("$" . "$")
     ("``" . "''")))
 
@@ -189,6 +211,8 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
         (and (listp face)
              (memq 'font-latex-math-face face)))))
 
+(defvar tex-parens--debug nil)
+
 (defun tex-parens-forward (&optional bound)
   "Find next TeX sexp. Moves point to end of sexp."
   (interactive)
@@ -206,11 +230,16 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
        (t
         (let ((other (tex-parens-is-close delim)))
           (cl-assert other)
-          (if (equal other (car stack))
-              (pop stack)
-            (backward-char (length delim))
-            ;; (push (cdr (tex-parens-delim-pair delim)) stack)
-            ))))
+          ;; (if (equal other (car stack))
+          ;;     (pop stack)
+          ;;   (backward-char (length delim)))
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" (car stack) delim)))
+                (pop stack))
+            (backward-char (length delim))))))
       (setq delim (and stack (tex-parens-basic-forward bound))))))
 
 ;; (defun tex-parens-delim-pair (delim)
@@ -237,8 +266,12 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
         t
         (let ((other (tex-parens-is-open delim)))
           (cl-assert other)
-          (if (equal other (car stack))
-              (pop stack)
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" delim (car stack))))
+                (pop stack))
             (forward-char (length delim))
             ;; (push delim stack)
             ))
@@ -273,9 +306,20 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
        (t
         (let ((other (tex-parens-is-open delim)))
           (cl-assert other)
-          (if (equal other (car stack))
-              (pop stack)
-            (setq success t)))
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" delim (car stack))))
+                (pop stack)
+                (setq success t))
+            (setq success t))
+          ;; (push delim stack))
+          
+          ;; (if (equal other (car stack))
+          ;;     (pop stack)
+          ;;   (setq success t))
+          )
         ;; (assoc delim tex-parens-pairs)
                                         ; Opening delimiter
         ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
@@ -306,8 +350,12 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
        (t
         (let ((other (tex-parens-is-close delim)))
           (cl-assert other)
-          (if (equal other (car stack))
-              (pop stack)
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" delim (car stack))))
+                (pop stack))
             (setq success t)))
         ;; (cdr (tex-parens-delim-pair delim))
                                         ; Closing delimiter
@@ -337,7 +385,7 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
       (goto-char start))
     (preview-move-point)))
 
-(defun tex-parens-unwrap (&optional bound)
+(defun tex-parens-delete-pair (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
   (tex-parens-down)
@@ -350,6 +398,147 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
   (let ((q (point)))
     (tex-parens-basic-backward)
     (delete-region (point) q)))
+
+;; it shouldn't be necessary to define any of the following, but for some reason why I set forward-sexp-function to tex-parens-forward-sexp, Emacs freezes up.  so we'll just do things ad hoc for now
+
+(defun tex-parens-mark-sexp (&optional arg allow-extend)
+  "Set mark ARG sexps from point or move mark one sexp.
+When called from Lisp with ALLOW-EXTEND omitted or nil, mark is
+set ARG sexps from point.
+With ARG and ALLOW-EXTEND both non-nil (interactively, with prefix
+argument), the place to which mark goes is the same place \\[forward-sexp]
+would move to with the same argument; if the mark is active, it moves
+ARG sexps from its current position, otherwise it is set ARG sexps
+from point.
+When invoked interactively without a prefix argument and no active
+region, mark moves one sexp forward.
+When invoked interactively without a prefix argument, and region
+is active, mark moves one sexp away of point (i.e., forward
+if mark is at or after point, back if mark is before point), thus
+extending the region by one sexp.  Since the direction of region
+extension depends on the relative position of mark and point, you
+can change the direction by \\[exchange-point-and-mark].
+This command assumes point is not in a string or comment."
+  (interactive "P\np")
+  (cond ((and allow-extend
+	             (or (and (eq last-command this-command) (mark t))
+		                (and transient-mark-mode mark-active)))
+	        (setq arg (if arg (prefix-numeric-value arg)
+		                   (if (< (mark) (point)) -1 1)))
+	        (set-mark
+	         (save-excursion
+	           (goto-char (mark))
+            (condition-case error
+	               (tex-parens-forward-sexp arg)
+              (scan-error
+               (user-error (if (equal (cadr error)
+                                      "Containing expression ends prematurely")
+                               "No more sexp to select"
+                             (cadr error)))))
+	           (point))))
+	       (t
+	        (push-mark
+	         (save-excursion
+            (condition-case error
+	               (tex-parens-forward-sexp (prefix-numeric-value arg))
+              (scan-error
+               (user-error (if (equal (cadr error)
+                                      "Containing expression ends prematurely")
+                               "No sexp to select"
+                             (cadr error)))))
+	           (point))
+	         nil t))))
+
+(defun tex-parens-kill-sexp (&optional arg interactive)
+  "Kill the sexp (balanced expression) following point.
+With ARG, kill that many sexps after point.
+Negative arg -N means kill N sexps before point.
+This command assumes point is not in a string or comment.
+If INTERACTIVE is non-nil, as it is interactively,
+report errors as appropriate for this kind of usage."
+  (interactive "p\nd")
+  (if interactive
+      (condition-case _
+          (kill-sexp arg nil)
+        (scan-error (user-error (if (> arg 0)
+                                    "No next sexp"
+                                  "No previous sexp"))))
+    (let ((opoint (point)))
+      (tex-parens-forward-sexp (or arg 1))
+      (kill-region opoint (point)))))
+
+(defun tex-parens-backward-kill-sexp (&optional arg interactive)
+  "Kill the sexp (balanced expression) preceding point.
+With ARG, kill that many sexps before point.
+Negative arg -N means kill N sexps after point.
+This command assumes point is not in a string or comment.
+If INTERACTIVE is non-nil, as it is interactively,
+report errors as appropriate for this kind of usage."
+  (interactive "p\nd")
+  (tex-parens-kill-sexp (- (or arg 1)) interactive))
+
+(defun tex-parens-transpose-sexps-default-function (arg)
+  "Default method to locate a pair of points for transpose-sexps."
+  ;; Here we should try to simulate the behavior of
+  ;; (cons (progn (forward-sexp x) (point))
+  ;;       (progn (forward-sexp (- x)) (point)))
+  ;; Except that we don't want to rely on the second forward-sexp
+  ;; putting us back to where we want to be, since forward-sexp-function
+  ;; might do funny things like infix-precedence.
+  (if (if (> arg 0)
+	         (looking-at "\\sw\\|\\s_")
+	       (and (not (bobp))
+	            (save-excursion
+               (forward-char -1)
+               (looking-at "\\sw\\|\\s_"))))
+      ;; Jumping over a symbol.  We might be inside it, mind you.
+      (progn (funcall (if (> arg 0)
+			                       #'skip-syntax-backward #'skip-syntax-forward)
+		                    "w_")
+	            (cons (save-excursion (tex-parens-forward-sexp arg) (point)) (point)))
+    ;; Otherwise, we're between sexps.  Take a step back before jumping
+    ;; to make sure we'll obey the same precedence no matter which
+    ;; direction we're going.
+    (funcall (if (> arg 0) #'skip-syntax-backward #'skip-syntax-forward)
+             " .")
+    (cons (save-excursion (tex-parens-forward-sexp arg) (point))
+	         (progn (while (or (forward-comment (if (> arg 0) 1 -1))
+			                         (not (zerop (funcall (if (> arg 0)
+						                                               #'skip-syntax-forward
+						                                             #'skip-syntax-backward)
+						                                           ".")))))
+		               (point)))))
+
+(defun tex-parens-raise-sexp (&optional n)
+  "Raise N sexps one level higher up the tree.
+
+This function removes the sexp enclosing the form which follows
+point, and then re-inserts N sexps that originally followed point,
+thus raising those N sexps one level up.
+
+Interactively, N is the numeric prefix argument, and defaults to 1.
+
+For instance, if you have:
+
+  (let ((foo 2))
+    (progn
+      (setq foo 3)
+      (zot)
+      (+ foo 2)))
+
+and point is before (zot), \\[raise-sexp] will give you
+
+  (let ((foo 2))
+    (zot))"
+  (interactive "p")
+  (let ((s (if (and transient-mark-mode mark-active)
+               (buffer-substring (region-beginning) (region-end))
+             (buffer-substring
+              (point)
+              (save-excursion (tex-parens-forward-sexp n) (point))))))
+    (tex-parens-backward-up)
+    (delete-region (point) (save-excursion (tex-parens-forward-sexp 1) (point)))
+    (save-excursion (insert s))))
 
 (provide 'tex-parens)
 ;;; tex-parens.el ends here
