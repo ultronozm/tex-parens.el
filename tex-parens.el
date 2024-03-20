@@ -37,7 +37,8 @@
                                #'backward-char #'forward-char #'tex-parens-down)))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
   (setq-local end-of-defun-function #'tex-parens--end-of-defun)
-  (setq-local forward-sexp-function #'tex-parens--forward-sexp-with-arg))
+  ;; (setq-local forward-sexp-function #'tex-parens--forward-sexp-with-arg)
+  )
 
 (defun tex-parens--beginning-of-defun ()
   (interactive)
@@ -52,18 +53,19 @@
   (interactive "^p")
   (or arg (setq arg 1))
   (while (> arg 0)
-    (tex-parens--forward-sexp)
+    (tex-parens-forward-sexp)
     (setq arg (1- arg)))
   (while (< arg 0)
-    (tex-parens--backward-sexp)
+    (tex-parens-backward-sexp)
     (setq arg (1+ arg))))
 
-(defun tex-parens--forward-sexp ()
+(defun tex-parens-forward-sexp ()
   "Internal forward-sexp function.
 This function is a wrapper around `forward-sexp' that uses
 tex-parens to identify the next delimiter.  If `forward-sexp'
 does not take us past the starting point of the next delimiter, then
 do that.  Otherwise, do `tex-parens-forward'."
+  (interactive)
   (let ((delim-beg (save-excursion
                      (tex-parens-basic-forward)
                      (match-beginning 0)))
@@ -76,12 +78,13 @@ do that.  Otherwise, do `tex-parens-forward'."
         (tex-parens-forward)
       (goto-char vanilla))))
 
-(defun tex-parens--backward-sexp ()
+(defun tex-parens-backward-sexp ()
   "Internal `backward-sexp' function.
 This function is a wrapper around `backward-sexp' that uses
 tex-parens to identify the previous delimiter.  If `backward-sexp'
 does not take us beyond the ending point of the previous
 delimiter, then do that.  Otherwise, do `tex-parens-backward'."
+  (interactive)
   (let ((delim-end (save-excursion
                      (when-let ((delim (tex-parens-basic-backward)))
                        (forward-char (length delim))
