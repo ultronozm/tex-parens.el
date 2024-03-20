@@ -33,7 +33,17 @@
    preview-auto-reveal
    '(eval (preview-arrived-via (key-binding [left])
                                (key-binding [right])
-                               #'backward-char #'forward-char #'tex-parens-down))))
+                               #'backward-char #'forward-char #'tex-parens-down)))
+  (setq-local beginning-of-defun-function #'tex-parens-beginning-of-defun)
+  (setq-local end-of-defun-function #'tex-parens-end-of-defun))
+
+(defun tex-parens-beginning-of-defun ()
+  (interactive)
+  (re-search-backward "^\\\\begin{[^}]+}" nil t))
+
+(defun tex-parens-end-of-defun ()
+  (interactive)
+  (re-search-forward "^\\\\end{[^}]+}\n" nil t))
 
 (defvar tex-parens-pairs
   '(("(" . ")")
