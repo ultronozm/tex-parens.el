@@ -115,6 +115,12 @@ Here `defun' means top-level environment."
   "Left/right delimiters not to be combined with modifiers."
   :type '(repeat (cons string string)))
 
+(defcustom tp-max-delim-length 25
+  "Maximum length of a delimiter.
+This is comfortably larger than `\biggl\langle' and
+`\begin{proposition}', for example."
+  :type 'integer)
+
 (defun tp--reduce-append (func list1 list2)
   "List consisting of FUNC applied to pairs from LIST1 and LIST2."
   (cl-reduce #'append
@@ -231,6 +237,13 @@ defun-based commands."
   :group 'tex-parens)
 
 (defun tp--ignore (m-str m-begin m-end)
+  "Check if M-STR should be ignored.
+M-STR is the string matched by the search, M-BEGIN is the
+beginning of the match, and M-END is the end of the match.  If
+TP-IGNORE-COMMENTS is non-nil, then ignore comments.  If M-STR is
+a double prime in math mode, then ignore it.  If M-STR is a
+dollar delimiter that does not demarcate math mode, then ignore
+it."
   (or
    (and
     tp-ignore-comments
@@ -253,6 +266,7 @@ defun-based commands."
        (tp--math-face-p))))))
 
 (defun tp--search-forward (regexp bound)
+  "Search forward for REGEXP up to BOUND."
   (let (success done)
     (while (not done)
       (if (re-search-forward regexp bound t)
@@ -265,39 +279,35 @@ defun-based commands."
     (when success
       (match-string 0))))
 
-;; TODO (not essential): speed this up
-
-(defun tp--search-backward (regexp bound)
-  (let* ((text (buffer-substring bound (point)))
-         (buf (current-buffer))
-         result)
-    (with-temp-buffer
-      (insert (reverse text))
-      (goto-char (point-min))
-      (setq result
-            (let (success done)
-              (while (not done)
-                (if (re-search-forward regexp nil t)
-                    (when (not
-                           (let ((new-point (point))
-                                 (m-string (match-string 0)))
-                             (with-current-buffer buf
-                               (save-excursion
-                                 (backward-char (1- new-point))
-                                 (tp--ignore m-string
-                                             (point)
-                                             (+ (point) (length m-string)))))))
-                      (setq done t
-                            success t))
-                  (setq done t)))
-              (when success
-                (cons (point) (match-string 0))))))
-    (when result
-      (let ((new-point (car result))
-            (match (cdr result)))
-        (backward-char (1- new-point))
-        ;; (goto-char (- (point) (1- new-point)))
-        (reverse match)))))
+(defun tp--search-backward (regexp regexp-reverse bound)
+  "Search backward, greedily, for REGEXP up to BOUND.
+Assumes that REGEXP-REVERSE is the reverse of REGEXP."
+  (let (done success match)
+    (while (not done)
+      (if (re-search-backward regexp bound t)
+          (progn
+            ;; find the longest match by applying the backward regexp
+            ;; to the reversed text
+            (goto-char (match-end 0))
+            (let ((text (buffer-substring-no-properties
+                         (save-excursion (backward-char tp-max-delim-length)
+                                         (point))
+                         (point))))
+              (with-temp-buffer
+                (insert (reverse text))
+                (goto-char (point-min))
+                (re-search-forward regexp-reverse nil t)
+                (setq match (reverse (match-string 0))))
+              (backward-char (length match))
+              (when (not (tp--ignore match
+                                     (point)
+                                     (+ (point) (length match))))
+                (setq done t)
+                (setq success t))))
+        ;; didn't find anything, so we failed
+        (setq done t)))
+    (when success
+      match)))
 
 (defun tp--forward-bound ()
   "Return the bound for forward search."
@@ -323,7 +333,7 @@ Return the delimiter found, or nil if none is found."
   "Search for the previous delimiter up to BOUND.
 Return the delimiter found, or nil if none is found."
   (unless bound (setq bound (tp--backward-bound)))
-  (tp--search-backward tp--regexp-reverse bound))
+  (tp--search-backward tp--regexp tp--regexp-reverse bound))
 
 (defun tp--close-of-open (delim)
   "Check if DELIM is opening, return the corresponding closing.
@@ -827,7 +837,7 @@ and point is before (zot), \\[raise-sexp] will give you
 (defun tp--barf-left ()
   "Barf the next sexp out of the current one, to the right."
   (when-let* ((pos (point))
-              (bound (save-excursion (backward-char 30) (point)))
+              (bound (save-excursion (backward-char tp-max-delim-length) (point)))
               (text (buffer-substring bound pos))
               (reversed-text (reverse text))
               (reverse-match
@@ -865,8 +875,8 @@ Otherwise, call `self-insert-command'."
   (interactive)
   (cond
    ((and
-     (not (looking-back tp--regexp-open (save-excursion (backward-char 30) (point))))
-     (looking-back tp--regexp-close (save-excursion (backward-char 30) (point))))
+     (not (looking-back tp--regexp-open (save-excursion (backward-char tp-max-delim-length) (point))))
+     (looking-back tp--regexp-close (save-excursion (backward-char tp-max-delim-length) (point))))
     (tp--barf-left))
    ((and
      (not (looking-at tp--regexp-close))
@@ -901,7 +911,7 @@ Otherwise, call `self-insert-command'."
 (defun tp--slurp-right ()
   "Slurp the next sexp into the current one, to the right."
   (when-let* ((pos (point))
-              (bound (save-excursion (backward-char 30) (point)))
+              (bound (save-excursion (backward-char tp-max-delim-length) (point)))
               (text (buffer-substring bound pos))
               (reversed-text (reverse text))
               (reverse-match
@@ -931,8 +941,8 @@ Otherwise, call `self-insert-command'."
   (interactive)
   (cond
    ((and
-     (not (looking-back tp--regexp-open (save-excursion (backward-char 30) (point))))
-     (looking-back tp--regexp-close (save-excursion (backward-char 30) (point))))
+     (not (looking-back tp--regexp-open (save-excursion (backward-char tp-max-delim-length) (point))))
+     (looking-back tp--regexp-close (save-excursion (backward-char tp-max-delim-length) (point))))
     (tp--slurp-right))
    ((and
      (not (looking-at tp--regexp-close))
