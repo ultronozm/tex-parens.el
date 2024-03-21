@@ -49,18 +49,28 @@
 
 ;;; Code:
 
-(defun tex-parens-setup ()
-  "Hook function for LaTeX-mode that sets up tex-parens."
-  (setq
-   preview-auto-reveal
-   '(eval (preview-arrived-via (key-binding [left])
-                               (key-binding [right])
-                               #'backward-char #'forward-char #'tex-parens-down-list)))
-  (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
-  (setq-local end-of-defun-function #'tex-parens--end-of-defun)
-  ;; don't know why, but this freezes Emacs:
-  ;; (setq-local forward-sexp-function #'tex-parens-forward-sexp)
-  )
+;; (defvar tex-parens-pairs
+;;   '(("(" . ")")
+;;     ("\\Big(" . "\\Big)")
+;;     ("\\left(" . "\\right)")
+;;     ("[" . "]")
+;;     ("\\left[" . "\\right]")
+;;     ("{" . "}")
+;;     ("\\{" . "\\}")
+;;     ("\\left\\{" . "\\right\\}")
+;;     ("\\langle" . "\\rangle")
+;;     ("\\left\\langle" . "\\right\\rangle")
+;;     ("\\lvert" . "\\rvert")
+;;     ("\\left\\lvert" . "\\right\\rvert")
+;;     ("\\lVert" . "\\rVert")
+;;     ("\\left\\lVert" . "\\right\\rVert")
+;;     ("\\left|" . "\\right|")
+;;     ("\\left." . "\\right.")
+;;     ("$" . "$")
+;;     ("$$" . "$$")
+;;     ("\\(" . "\\)")
+;;     ("\\[" . "\\]")
+;;     ("``" . "''")))
 
 (defun tex-parens--beginning-of-defun ()
   (interactive)
@@ -69,6 +79,263 @@
 (defun tex-parens--end-of-defun ()
   (interactive)
   (re-search-forward "^\\\\end{[^}]+}\n" nil t))
+
+(defun tex-parens--generate-pairs ()
+  (let ((unambiguous-parens
+         '(("(" . ")")
+           ("[" . "]")
+           ("\\{" . "\\}")
+           ("\\langle" . "\\rangle")
+           ("\\lvert" . "\\rvert")
+           ("\\lVert" . "\\rVert")
+           ("\\lfloor" . "\\rfloor")
+           ("\\lceil" . "\\rceil")))
+        (ambiguous-parens
+         '("|" "\\|" "\\vert" "\\Vert"))
+        (unambiguous-modifiers
+         '(("\\left" . "\\right")
+           ("\\bigl" . "\\bigr")
+           ("\\Bigl" . "\\Bigr")
+           ("\\biggl" . "\\biggr")
+           ("\\Biggl" . "\\Biggr")))
+        (ambiguous-modifiers
+         '("\\big"
+           "\\Big"
+           "\\bigg"
+           "\\Bigg"))
+        (other-parens
+         '(("``" . "''")
+           ("$" . "$")
+           ("{" . "}")
+           ("$$" . "$$")
+           ("\\(" . "\\)")
+           ("\\[" . "\\]")
+           ("\\left." . "\\right."))))
+    (append
+     other-parens
+     unambiguous-parens
+     (cl-reduce #'append
+                (mapcar
+                 (lambda (unam-par)
+                   (mapcar
+                    (lambda (unam-mod)
+                      (cons (concat (car unam-mod) (car unam-par))
+                            (concat (cdr unam-mod) (cdr unam-par))))
+                    unambiguous-modifiers))
+                 unambiguous-parens))
+     (cl-reduce #'append
+                (mapcar
+                 (lambda (unam-par)
+                   (mapcar
+                    (lambda (am-mod)
+                      (cons (concat am-mod (car unam-par))
+                            (concat am-mod (cdr unam-par))))
+                    ambiguous-modifiers))
+                 unambiguous-parens))
+     (cl-reduce #'append
+                (mapcar
+                 (lambda (am-par)
+                   (mapcar
+                    (lambda (unam-mod)
+                      (cons (concat (car unam-mod) am-par)
+                            (concat (cdr unam-mod) am-par)))
+                    unambiguous-modifiers))
+                 ambiguous-parens)))))
+
+
+;; (defun tex-parens-open ()
+;;   (mapcar #'car tex-parens-pairs))
+
+;; (defun tex-parens-close ()
+;;   (mapcar #'cdr tex-parens-pairs))
+
+;; (defun tex-parens-delims ()
+;;   (append (tex-parens-open) (tex-parens-close)))
+
+;; (defun tex-parens-regexp ()
+;;   (concat (regexp-opt (tex-parens-delims))
+;;           "\\|\\\\begin{[^}]+}\\|\\\\end{[^}]+}"))
+
+;; (defun tex-parens-reverse-regexp ()
+;;   (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
+;;           (regexp-opt (mapcar #'reverse (tex-parens-delims)))))
+
+(defvar tex-parens--pairs nil)
+(defvar tex-parens--pairs-swap nil)
+(defvar tex-parens--delims nil)
+(defvar tex-parens--regexp nil)
+(defvar tex-parens--regexp-reverse nil)
+
+(defun tex-parens-setup ()
+  "Hook function for LaTeX-mode that sets up tex-parens."
+  (setq
+   preview-auto-reveal
+   '(eval (preview-arrived-via (key-binding [left])
+                               (key-binding [right])
+                               #'backward-char #'forward-char #'tex-parens-down-list)))
+  (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
+  (setq end-of-defun-function #'tex-parens--end-of-defun)
+  (setq tex-parens--pairs (tex-parens--generate-pairs))
+  (setq tex-parens--pairs-swap
+        (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens--pairs))
+  (setq tex-parens--delims (append (mapcar #'car tex-parens--pairs)
+                                   (mapcar #'cdr tex-parens--pairs)))
+  (setq tex-parens--regexp
+        (concat (regexp-opt tex-parens--delims)
+                "\\|\\\\begin{[^}]+}\\|\\\\end{[^}]+}"))
+  (setq tex-parens--regexp-reverse
+        (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
+                (regexp-opt (mapcar #'reverse tex-parens--delims))))
+  ;; don't know why, but this freezes Emacs:
+  ;; (setq-local forward-sexp-function #'tex-parens-forward-sexp)
+  )
+
+
+(defcustom tex-parens-search-limit 10000
+  "Number of characters to search for a delimiter."
+  :type 'integer
+  :group 'tex-parens)
+
+(defun tex-parens-bound-default-forward ()
+  (save-excursion
+    (min
+     (point-max)
+     (+ (point) tex-parens-search-limit))))
+
+(defun tex-parens-bound-default-backward ()
+  (save-excursion
+    (max
+     (point-min)
+     (- (point) tex-parens-search-limit))))
+
+(defun tex-parens--forward-delim (&optional bound)
+  (interactive)
+  (unless bound (setq bound (tex-parens-bound-default-forward)))
+  (when (re-search-forward tex-parens--regexp bound t)
+    (match-string 0)))
+
+(defun tex-parens--backward-delim (&optional bound)
+  (interactive)
+  (unless bound (setq bound (tex-parens-bound-default-backward)))
+  (let* ((text (buffer-substring-no-properties bound (point)))
+         match result)
+    (with-temp-buffer
+      (insert (reverse text))
+      (goto-char (point-min))
+      (setq result (re-search-forward tex-parens--regexp-reverse nil t))
+      (when result (setq match (match-string 0))))
+    (when result
+      (backward-char (1- result))
+      (reverse match))))
+
+(defun tex-parens--close-of-open (delim)
+  "Check if DELIM is opening, return the corresponding closing.
+If DELIM is an opening delimiter, return the corresponding closing
+delimiter.  Otherwise, return nil."
+  (or
+   (cdr (assoc delim tex-parens--pairs))
+   (and (stringp delim)
+        (string-match "\\\\begin{\\([^}]+\\)}" delim)
+        (let ((type (match-string 1 delim)))
+          (format "\\end{%s}" type)))))
+
+(defun tex-parens--open-of-close (delim)
+  "Check if DELIM is closing, return the corresponding opening.
+If DELIM is a closing delimiter, return the corresponding opening
+delimiter.  Otherwise, return nil."  
+  (or
+   (cdr (assoc delim tex-parens--pairs-swap))
+   (and (stringp delim)
+        (string-match "\\\\end{\\([^}]+\\)}" delim)
+        (let ((type (match-string 1 delim)))
+          (format "\\begin{%s}" type)))))
+
+(defun tex-parens--math-face-p ()
+  "Check if point is in a math face."
+  (let ((face (plist-get (text-properties-at (point))
+                         'face)))
+    (or (eq face 'font-latex-math-face)
+        (and (listp face)
+             (memq 'font-latex-math-face face)))))
+
+(defvar tex-parens--debug nil)
+
+(defun tex-parens-forward-list (&optional bound)
+  "Find next TeX sexp. Moves point to end of sexp."
+  (interactive)
+  (unless bound (setq bound (tex-parens-bound-default-forward)))
+  (let ((start (point))
+        (delim (tex-parens--forward-delim bound))
+        (stack ()))
+    (while delim
+      (cond
+       ((or
+         (and (member delim '("$" "$$"))
+              (tex-parens--math-face-p))
+         (and (not (member delim '("$" "$$")))
+              (tex-parens--close-of-open delim)))   ; Opening delimiter
+        (push delim stack))
+       (t
+        (let ((other (tex-parens--open-of-close delim)))
+          (cl-assert other)
+          ;; (if (equal other (car stack))
+          ;;     (pop stack)
+          ;;   (backward-char (length delim)))
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" (car stack) delim)))
+                (pop stack))
+            (backward-char (length delim))))))
+      (setq delim (and stack (tex-parens--forward-delim bound))))
+    (when stack
+      (goto-char start)
+      (when tex-parens--debug
+        (message "Unmatched delimiters: %s" (car stack))))))
+
+(defun tex-parens-backward-list (&optional bound)
+  "Find previous TeX sexp. Moves point to start of sexp."
+  (interactive)
+  (unless bound (setq bound (tex-parens-bound-default-backward)))
+  (let ((start (point))
+        (delim (tex-parens--backward-delim bound))
+        (stack ()))
+    (while delim
+      (cond
+       ((or
+         (and (member delim '("$" "$$"))
+              (save-excursion
+                (backward-char (length delim))
+                (tex-parens--math-face-p)))
+         (and (not (member delim '("$" "$$")))
+              (tex-parens--open-of-close delim)))
+        (push delim stack))
+       (t
+        (let ((other (tex-parens--close-of-open delim)))
+          (cl-assert other)
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" delim (car stack))))
+                (pop stack))
+            (forward-char (length delim))
+            ;; (push delim stack)
+            ))
+        ;; (assoc delim tex-parens-pairs)
+                                        ; Opening delimiter
+        ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
+        ;;     (pop stack)
+        ;;   (forward-char (length delim)))
+        )
+       )
+      (setq delim (and stack (tex-parens--backward-delim bound))))
+    (when stack
+      (goto-char start)
+      (when tex-parens--debug
+        (message "Unmatched delimiters: %s" (car stack))))))
+
 
 (defun tex-parens-forward-sexp (&optional arg)
   "Function to use as `forward-sexp-function' in LaTeX-mode."
@@ -119,189 +386,6 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
         (tex-parens-backward-list)
       (goto-char vanilla))))
 
-(defvar tex-parens-pairs
-  '(("(" . ")")
-    ("\\Big(" . "\\Big)")
-    ("\\left(" . "\\right)")
-    ("[" . "]")
-    ("\\left[" . "\\right]")
-    ("{" . "}")
-    ("\\{" . "\\}")
-    ("\\left\\{" . "\\right\\}")
-    ("\\langle" . "\\rangle")
-    ("\\left\\langle" . "\\right\\rangle")
-    ("\\lvert" . "\\rvert")
-    ("\\left\\lvert" . "\\right\\rvert")
-    ("\\lVert" . "\\rVert")
-    ("\\left\\lVert" . "\\right\\rVert")
-    ("\\left|" . "\\right|")
-    ("\\left." . "\\right.")
-    ("$" . "$")
-    ("$$" . "$$")
-    ("\\(" . "\\)")
-    ("\\[" . "\\]")
-    ("``" . "''")))
-
-(defun tex-parens-open ()
-  (mapcar #'car tex-parens-pairs))
-
-(defun tex-parens-close ()
-  (mapcar #'cdr tex-parens-pairs))
-
-(defun tex-parens-delims ()
-  (append (tex-parens-open) (tex-parens-close)))
-
-(defun tex-parens-regexp ()
-  (concat (regexp-opt (tex-parens-delims))
-          "\\|\\\\begin{[^}]+}\\|\\\\end{[^}]+}"))
-
-(defun tex-parens-reverse-regexp ()
-  (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
-          (regexp-opt (mapcar #'reverse (tex-parens-delims)))))
-
-(defcustom tex-parens-search-limit 10000
-  "Number of characters to search for a delimiter."
-  :type 'integer
-  :group 'tex-parens)
-
-(defun tex-parens-bound-default-forward ()
-  (save-excursion
-    (min
-     (point-max)
-     (+ (point) tex-parens-search-limit))))
-
-(defun tex-parens-bound-default-backward ()
-  (save-excursion
-    (max
-     (point-min)
-     (- (point) tex-parens-search-limit))))
-
-(defun tex-parens--forward-delim (&optional bound)
-  (interactive)
-  (unless bound (setq bound (tex-parens-bound-default-forward)))
-  (when (re-search-forward (tex-parens-regexp) bound t)
-    (match-string 0)))
-
-(defun tex-parens--backward-delim (&optional bound)
-  (interactive)
-  (unless bound (setq bound (tex-parens-bound-default-backward)))
-  (let* ((text (buffer-substring-no-properties bound (point)))
-         match result)
-    (with-temp-buffer
-      (insert (reverse text))
-      (goto-char (point-min))
-      (setq result (re-search-forward (tex-parens-reverse-regexp) nil t))
-      (when result (setq match (match-string 0))))
-    (when result
-      (backward-char (1- result))
-      (reverse match))))
-
-(defun tex-parens-is-open (delim)
-  (or
-   (cdr (assoc delim tex-parens-pairs))
-   (and (stringp delim)
-        (string-match "\\\\begin{\\([^}]+\\)}" delim)
-        (let ((type (match-string 1 delim)))
-          (format "\\end{%s}" type)))))
-
-(defun tex-parens-is-close (delim)
-  (or
-   (cdr (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs)))
-   (and (stringp delim)
-        (string-match "\\\\end{\\([^}]+\\)}" delim)
-        (let ((type (match-string 1 delim)))
-          (format "\\begin{%s}" type)))))
-
-(defun tex-parens-face-mathy ()
-  (let ((face (plist-get (text-properties-at (point))
-                         'face)))
-    (or (eq face 'font-latex-math-face)
-        (and (listp face)
-             (memq 'font-latex-math-face face)))))
-
-(defvar tex-parens--debug nil)
-
-(defun tex-parens-forward-list (&optional bound)
-  "Find next TeX sexp. Moves point to end of sexp."
-  (interactive)
-  (unless bound (setq bound (tex-parens-bound-default-forward)))
-  (let ((start (point))
-        (delim (tex-parens--forward-delim bound))
-        (stack ()))
-    (while delim
-      (cond
-       ((or
-         (and (member delim '("$" "$$"))
-              (tex-parens-face-mathy))
-         (and (not (member delim '("$" "$$")))
-              (tex-parens-is-open delim)))   ; Opening delimiter
-        (push delim stack))
-       (t
-        (let ((other (tex-parens-is-close delim)))
-          (cl-assert other)
-          ;; (if (equal other (car stack))
-          ;;     (pop stack)
-          ;;   (backward-char (length delim)))
-          (if stack
-              (progn
-                (when tex-parens--debug
-                  (unless (equal other (car stack))
-                    (message "Mismatched delimiters: %s %s" (car stack) delim)))
-                (pop stack))
-            (backward-char (length delim))))))
-      (setq delim (and stack (tex-parens--forward-delim bound))))
-    (when stack
-      (goto-char start)
-      (when tex-parens--debug
-        (message "Unmatched delimiters: %s" (car stack))))))
-
-;; (defun tex-parens-delim-pair (delim)
-;;   (or (assoc delim tex-parens-pairs)
-;;       (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs))))
-
-(defun tex-parens-backward-list (&optional bound)
-  "Find previous TeX sexp. Moves point to start of sexp."
-  (interactive)
-  (unless bound (setq bound (tex-parens-bound-default-backward)))
-  (let ((start (point))
-        (delim (tex-parens--backward-delim bound))
-        (stack ()))
-    (while delim
-      (cond
-       ((or
-         (and (member delim '("$" "$$"))
-              (save-excursion
-                (backward-char (length delim))
-                (tex-parens-face-mathy)))
-         (and (not (member delim '("$" "$$")))
-              (tex-parens-is-close delim)))
-        (push delim stack))
-       (t
-        (let ((other (tex-parens-is-open delim)))
-          (cl-assert other)
-          (if stack
-              (progn
-                (when tex-parens--debug
-                  (unless (equal other (car stack))
-                    (message "Mismatched delimiters: %s %s" delim (car stack))))
-                (pop stack))
-            (forward-char (length delim))
-            ;; (push delim stack)
-            ))
-        ;; (assoc delim tex-parens-pairs)
-                                        ; Opening delimiter
-        ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
-        ;;     (pop stack)
-        ;;   (forward-char (length delim)))
-        )
-       )
-      (setq delim (and stack (tex-parens--backward-delim bound))))
-    (when stack
-      (goto-char start)
-      (when tex-parens--debug
-        (message "Unmatched delimiters: %s" (car stack))))))
-
-
 (defun tex-parens-backward-up-list (&optional bound)
   "Find previous TeX sexp. Moves point to start of sexp."
   (interactive)
@@ -316,12 +400,12 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
          (and (member delim '("$" "$$"))
               (save-excursion
                 (backward-char (length delim))
-                (tex-parens-face-mathy)))
+                (tex-parens--math-face-p)))
          (and (not (member delim '("$" "$$")))
-              (tex-parens-is-close delim)))
+              (tex-parens--open-of-close delim)))
         (push delim stack))
        (t
-        (let ((other (tex-parens-is-open delim)))
+        (let ((other (tex-parens--close-of-open delim)))
           (cl-assert other)
           (if stack
               (progn
@@ -352,25 +436,27 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
   (let ((start (point))
+        success
         (delim (tex-parens--forward-delim bound))
         (stack ()))
     (while delim
       (cond
        ((or
-         (and (equal delim "$")
-              (tex-parens-face-mathy))
-         (and (not (equal delim "$"))
-              (tex-parens-is-open delim)))
+         (and (member delim '("$" "$$"))
+              (tex-parens--math-face-p))
+         (and (not (member delim '("$" "$$")))
+              (tex-parens--close-of-open delim)))
         (push delim stack))
        (t
-        (let ((other (tex-parens-is-close delim)))
+        (let ((other (tex-parens--open-of-close delim)))
           (cl-assert other)
-          (when stack
-            (progn
-              (when tex-parens--debug
-                (unless (equal other (car stack))
-                  (message "Mismatched delimiters: %s %s" delim (car stack))))
-              (pop stack))))
+          (if stack
+              (progn
+                (when tex-parens--debug
+                  (unless (equal other (car stack))
+                    (message "Mismatched delimiters: %s %s" delim (car stack))))
+                (pop stack))
+            (setq success t)))
         ;; (cdr (tex-parens-delim-pair delim))
                                         ; Closing delimiter
         ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
@@ -378,9 +464,59 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
         ;;   (setq success t))
         )
        )
-      (setq delim (and stack (tex-parens--forward-delim bound))))
+      (setq delim (and (not success) (tex-parens--forward-delim bound))))
     (unless success
       (goto-char start))))
+
+
+(defun tex-parens-forward-sexp (&optional arg)
+  "Function to use as `forward-sexp-function' in LaTeX-mode."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (while (> arg 0)
+    (tex-parens-forward-sexp-1)
+    (setq arg (1- arg)))
+  (while (< arg 0)
+    (tex-parens-backward-sexp)
+    (setq arg (1+ arg))))
+
+(defun tex-parens-forward-sexp-1 ()
+  "Internal forward-sexp function.
+This function is a wrapper around `forward-sexp' that uses
+tex-parens to identify the next delimiter.  If `forward-sexp'
+does not take us past the starting point of the next delimiter, then
+do that.  Otherwise, do `tex-parens-forward-list'."
+  (interactive)
+  (let ((delim-beg (save-excursion
+                     (tex-parens--forward-delim)
+                     (match-beginning 0)))
+        (vanilla (save-excursion
+                   (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
+                   (point))))
+    (if (and delim-beg
+             (> vanilla delim-beg))
+        (tex-parens-forward-list)
+      (goto-char vanilla))))
+
+(defun tex-parens-backward-sexp ()
+  "Internal `backward-sexp' function.
+This function is a wrapper around `backward-sexp' that uses
+tex-parens to identify the previous delimiter.  If `backward-sexp'
+does not take us beyond the ending point of the previous
+delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
+  (interactive)
+  (let ((delim-end (save-excursion
+                     (when-let ((delim (tex-parens--backward-delim)))
+                       (forward-char (length delim))
+                       (point))))
+        (vanilla (save-excursion
+                   (goto-char (or (scan-sexps (point) -1) (buffer-end -1)))
+                   (backward-prefix-chars)
+                   (point))))
+    (if (and delim-end
+             (< vanilla delim-end))
+        (tex-parens-backward-list)
+      (goto-char vanilla))))
 
 (defun tex-parens-down-list (&optional bound)
   (interactive)
@@ -391,9 +527,9 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
     (when (and delim
                (or
                 (and (equal delim "$")
-                     (tex-parens-face-mathy))
+                     (tex-parens--math-face-p))
                 (and (not (equal delim "$"))
-                     (tex-parens-is-open delim))))
+                     (tex-parens--close-of-open delim))))
       (setq success t))
     (unless success
       (goto-char start))
