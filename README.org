@@ -23,7 +23,7 @@ Emacs comes with the following useful commands for working with lists, sexps and
 | -               | delete-pair        | Delete a pair of characters enclosing ARG sexps that follow point. |
 | -               | raise-sexp         | Raise N sexps one level higher up the tree.                        |
 
-This package provides analogous commands adapted for tex buffers, with the role of parentheses =()=, brackets =[]= and braces ={}= played by the following:
+This package provides analogous commands adapted for tex buffers, with the class of parenthesis-like delimiters (namely, parentheses =()=, brackets =[]= and braces ={}=) expanded to include the following:
 - =\begin{...}= - =\end{...}= pairs
 - math environment delimiters =$...$=, =\(...\)=, =\[...\]=, =$$...$$=
 - mathematical delimiters: parentheses, brackets, braces, =\langle= - =\rangle=, =\lvert= - =\rvert=, etc., and compositions of these with modifiers such as =\left= - =\right=, =\Bigg=, etc.  See =M-x customize-group tex-parens= for details.
@@ -31,7 +31,7 @@ This package provides analogous commands adapted for tex buffers, with the role 
 There is some support in this direction in the built-in [[https://www.gnu.org/software/emacs/manual/html_node/emacs/TeX-Mode.html][tex-mode]], and also in [[https://www.gnu.org/software/auctex/][AUCTeX]].  There are many packages, such as [[https://paredit.org/][paredit]] and [[https://github.com/abo-abo/lispy][lispy]], that add further useful commands and bindings to lisp modes, and many other packages, such as [[https://github.com/Fuco1/smartparens][smartparens,]] [[https://github.com/AmaiKinono/puni][puni]] and [[https://github.com/purcell/paredit-everywhere][paredit-everywhere,]] that aim to give consistent parenthesis-based commands across all modes.  There's also the [[https://github.com/iyefrat/evil-tex][evil-tex]] package for those that prefer a modal setup.  I was unable to get these packages to behave in the desired manner.  Smartparens comes close, but doesn't seem to support arbitrary begin/end pairs, and has some issues when one delimiter is a prefix of another (https://github.com/Fuco1/smartparens/issues/1193).  This package should work out-of-the-box and behave in tex buffers just like stock Emacs does in lisp buffers.
 
 * Configuration
-Download this repository, install using =M-x package-install-file= (or package-vc-install, straight, elpaca, ...), and add something like the following to your [[https://www.emacswiki.org/emacs/InitFile][init file]], adjusting the binds according to preference (and replacing =LaTeX-mode= with =latex-mode= or =tex-mode= or =plain-tex-mode=, or whatever it is, if you don't use AUCTeX):
+Download this repository, install using =M-x package-install-file= (or package-vc-install, straight, elpaca, ...), and add something like the following to your [[https://www.emacswiki.org/emacs/InitFile][init file]], adjusting the binds according to preference (and replacing =LaTeX-mode= with =latex-mode= or =tex-mode= or =plain-tex-mode=, whichever is appropriate, if you don't use AUCTeX):
 #+begin_src elisp
 (use-package tex-parens
   :bind
@@ -55,7 +55,7 @@ Download this repository, install using =M-x package-install-file= (or package-v
 
 The precise use-package declaration that I use (with elpaca) may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]].
 
-Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tp-setup)= for the changes to take affect.
+Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tp-setup)= for the changes to take effect.
 
 * Issues
 1. This isn't really an issue in the sense that it doesn't affect usage, but it shouldn't have been necessary to define the functions =tp-mark-sexp=, =tp-kill-sexp=, =tp-backward-kill-sexp=, =tp-raise-sexp= -- it should suffice to use the built-in functions =mark-sexp=, =kill-sexp=, =backward-kill-sexp=, =raise-sexp= with the local variable =forward-sexp-function= set to =#'tp-forward-sexp=.  Unfortunately, Emacs freezes when I attempt to do so, for reasons that I haven't been able to debug.
