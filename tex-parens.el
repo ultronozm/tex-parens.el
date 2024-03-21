@@ -1,4 +1,4 @@
-;;; tex-parens.el --- lisp.el but for tex  -*- lexical-binding: t; -*-
+;;; tex-parens.el --- like lisp.el but for tex  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024  Paul D. Nelson
 
@@ -137,6 +137,9 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
     ("\\left|" . "\\right|")
     ("\\left." . "\\right.")
     ("$" . "$")
+    ("$$" . "$$")
+    ("\\(" . "\\)")
+    ("\\[" . "\\]")
     ("``" . "''")))
 
 (defun tex-parens-open ()
@@ -156,17 +159,22 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
   (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
           (regexp-opt (mapcar #'reverse (tex-parens-delims)))))
 
+(defcustom tex-parens-search-limit 10000
+  "Number of characters to search for a delimiter."
+  :type 'integer
+  :group 'tex-parens)
+
 (defun tex-parens-bound-default-forward ()
   (save-excursion
     (min
      (point-max)
-     (+ (point) 500))))
+     (+ (point) tex-parens-search-limit))))
 
 (defun tex-parens-bound-default-backward ()
   (save-excursion
     (max
      (point-min)
-     (- (point) 500))))
+     (- (point) tex-parens-search-limit))))
 
 (defun tex-parens--forward-delim (&optional bound)
   (interactive)
@@ -217,14 +225,15 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
   "Find next TeX sexp. Moves point to end of sexp."
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
-  (let ((delim (tex-parens--forward-delim bound))
+  (let ((start (point))
+        (delim (tex-parens--forward-delim bound))
         (stack ()))
     (while delim
       (cond
        ((or
-         (and (equal delim "$")
+         (and (member delim '("$" "$$"))
               (tex-parens-face-mathy))
-         (and (not (equal delim "$"))
+         (and (not (member delim '("$" "$$")))
               (tex-parens-is-open delim)))   ; Opening delimiter
         (push delim stack))
        (t
@@ -260,15 +269,14 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
     (while delim
       (cond
        ((or
-         (and (equal delim "$")
+         (and (member delim '("$" "$$"))
               (save-excursion
-                (backward-char)
+                (backward-char (length delim))
                 (tex-parens-face-mathy)))
-         (and (not (equal delim "$"))
+         (and (not (member delim '("$" "$$")))
               (tex-parens-is-close delim)))
         (push delim stack))
-       (
-        t
+       (t
         (let ((other (tex-parens-is-open delim)))
           (cl-assert other)
           (if stack
@@ -305,11 +313,11 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
     (while delim
       (cond 
        ((or
-         (and (equal delim "$")
+         (and (member delim '("$" "$$"))
               (save-excursion
-                (backward-char)
+                (backward-char (length delim))
                 (tex-parens-face-mathy)))
-         (and (not (equal delim "$"))
+         (and (not (member delim '("$" "$$")))
               (tex-parens-is-close delim)))
         (push delim stack))
        (t
@@ -345,8 +353,7 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
   (unless bound (setq bound (tex-parens-bound-default-forward)))
   (let ((start (point))
         (delim (tex-parens--forward-delim bound))
-        (stack ())
-        success)
+        (stack ()))
     (while delim
       (cond
        ((or
@@ -358,13 +365,12 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
        (t
         (let ((other (tex-parens-is-close delim)))
           (cl-assert other)
-          (if stack
-              (progn
-                (when tex-parens--debug
-                  (unless (equal other (car stack))
-                    (message "Mismatched delimiters: %s %s" delim (car stack))))
-                (pop stack))
-            (setq success t)))
+          (when stack
+            (progn
+              (when tex-parens--debug
+                (unless (equal other (car stack))
+                  (message "Mismatched delimiters: %s %s" delim (car stack))))
+              (pop stack))))
         ;; (cdr (tex-parens-delim-pair delim))
                                         ; Closing delimiter
         ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
@@ -372,7 +378,7 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
         ;;   (setq success t))
         )
        )
-      (setq delim (and (not success) (tex-parens--forward-delim bound))))
+      (setq delim (and stack (tex-parens--forward-delim bound))))
     (unless success
       (goto-char start))))
 
