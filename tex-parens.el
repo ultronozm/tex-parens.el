@@ -379,7 +379,27 @@ terminates `\left{'), so we do not treat it as an error."
     (unless (equal other stack-top)
       (message "Mismatched delimiters: %s %s" stack-top delim))))
 
-(defun tp-forward-list (&optional bound)
+(defun tp-forward-list (&optional arg)
+  "Move forward across one balanced group.
+With ARG, do it that many times.  Negative arg -N means move
+backward across N balanced groups."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (while (> arg 0)
+    (tp--forward-list-1)
+    (setq arg (1- arg)))
+  (while (< arg 0)
+    (tp-backward-list)
+    (setq arg (1+ arg))))
+
+(defun tp-backward-list (&optional arg)
+  "Move backward across one balanced group.
+With ARG, do it that many times.  Negative
+arg -N means move forward across N balanced groups."
+  (interactive "^p")
+  (tp-forward-list (- arg)))
+
+(defun tp--forward-list-1 (&optional bound)
   "Move forward across one balanced group.
 Search up to BOUND."
   (interactive)
@@ -405,7 +425,7 @@ Search up to BOUND."
       (when tp--debug
         (message "Unmatched delimiters: %s" (car stack))))))
 
-(defun tp-backward-list (&optional bound)
+(defun tp--backward-list-1 (&optional bound)
   "Move backward across one balanced group.
 Search up to BOUND."
   (interactive)
@@ -431,28 +451,88 @@ Search up to BOUND."
       (when tp--debug
         (message "Unmatched delimiters: %s" (car stack))))))
 
-(defun tp-backward-up-list (&optional bound)
-  "Move backward out of one balanced group.
-Search up to BOUND."
-  (interactive)
-  (unless bound (setq bound (tp--backward-bound)))
-  (let ((start (point))
-        success
-        (delim (tp--backward-delim bound))
-        (stack ()))
-    (while delim
-      (if (tp--backward-search-found-close delim)
-          (push delim stack)
-        (if stack
-            (progn
-              (tp--check-match delim (tp--close-of-open delim) (car stack))
-              (pop stack))
-          (setq success t)))
-      (setq delim (and (not success) (tp--backward-delim bound))))
-    (unless success
-      (goto-char start))))
+(defun tp-forward-sexp (&optional arg)
+  "Move forward across one balanced expression (sexp).
+If `forward-sexp' does not take us past the starting point of the
+next delimiter, then do that.  Otherwise, do
+`tp-forward-list'.
 
-(defun tp-up-list (&optional bound)
+With ARG, do it that many times.  Negative arg -N means move
+backward across N balanced expressions."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (while (> arg 0)
+    (tp--forward-sexp-1)
+    (setq arg (1- arg)))
+  (while (< arg 0)
+    (tp--backward-sexp-1)
+    (setq arg (1+ arg))))
+
+(defun tp-backward-sexp (&optional arg)
+  "Move forward across one balanced expression (sexp).
+If `forward-sexp' does not take us past the starting point of the
+next delimiter, then do that.  Otherwise, do
+`tp-forward-list'.
+
+With ARG, do it that many times.  Negative arg -N means move
+backward across N balanced expressions."
+  (interactive "^p")
+  (tp-forward-sexp (- arg)))
+
+(defun tp--forward-sexp-1 ()
+  "Move forward across one balanced expression (sexp).
+Helper function for `tp-forward-sexp'."
+  (let ((delim-beg (save-excursion
+                     (tp--forward-delim)
+                     (match-beginning 0)))
+        (vanilla (save-excursion
+                   (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
+                   (point))))
+    (if (and delim-beg
+             (> vanilla delim-beg))
+        (tp--forward-list-1)
+      (goto-char vanilla))))
+
+(defun tp--backward-sexp-1 ()
+  "Move backward across one balanced expression (sexp).
+If `backward-sexp' does not take us beyond the ending point of
+the previous delimiter, then do that.  Otherwise, do
+`tp-backward-list'."
+  (interactive)
+  (let ((delim-end (save-excursion
+                     (when-let ((delim (tp--backward-delim)))
+                       (forward-char (length delim))
+                       (point))))
+        (vanilla (save-excursion
+                   (goto-char (or (scan-sexps (point) -1) (buffer-end -1)))
+                   (backward-prefix-chars)
+                   (point))))
+    (if (and delim-end
+             (< vanilla delim-end))
+        (tp--backward-list-1)
+      (goto-char vanilla))))
+
+(defun tp-up-list (&optional arg)
+  "Move forward out of one balanced group.
+With ARG, do it that many times.  Negative arg -N means move
+backward out of N balanced groups."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (while (> arg 0)
+    (tp--up-list-1)
+    (setq arg (1- arg)))
+  (while (< arg 0)
+    (tp--backward-up-list-1)
+    (setq arg (1+ arg))))
+
+(defun tp-backward-up-list (&optional arg)
+  "Move backward out of one balanced group.
+With ARG, do it that many times.  Negative arg -N means move
+forward out of N balanced groups."
+  (interactive "^p")
+  (tp-up-list (- arg)))
+
+(defun tp--up-list-1 (&optional bound)
   "Move forward out of one balanced group.
 Search up to BOUND."
   (interactive)
@@ -473,57 +553,48 @@ Search up to BOUND."
     (unless success
       (goto-char start))))
 
-(defun tp--forward-sexp-1 ()
-  "Move forward across one balanced expression (sexp).
-Helper function for `tp-backward-sexp'."
-  (let ((delim-beg (save-excursion
-                     (tp--forward-delim)
-                     (match-beginning 0)))
-        (vanilla (save-excursion
-                   (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
-                   (point))))
-    (if (and delim-beg
-             (> vanilla delim-beg))
-        (tp-forward-list)
-      (goto-char vanilla))))
-
-(defun tp-backward-sexp ()
-  "Move backward across one balanced expression (sexp).
-If `backward-sexp' does not take us beyond the ending point of
-the previous delimiter, then do that.  Otherwise, do
-`tp-backward-list'."
+(defun tp--backward-up-list-1 (&optional bound)
+  "Move backward out of one balanced group.
+Search up to BOUND."
   (interactive)
-  (let ((delim-end (save-excursion
-                     (when-let ((delim (tp--backward-delim)))
-                       (forward-char (length delim))
-                       (point))))
-        (vanilla (save-excursion
-                   (goto-char (or (scan-sexps (point) -1) (buffer-end -1)))
-                   (backward-prefix-chars)
-                   (point))))
-    (if (and delim-end
-             (< vanilla delim-end))
-        (tp-backward-list)
-      (goto-char vanilla))))
+  (unless bound (setq bound (tp--backward-bound)))
+  (let ((start (point))
+        success
+        (delim (tp--backward-delim bound))
+        (stack ()))
+    (while delim
+      (if (tp--backward-search-found-close delim)
+          (push delim stack)
+        (if stack
+            (progn
+              (tp--check-match delim (tp--close-of-open delim) (car stack))
+              (pop stack))
+          (setq success t)))
+      (setq delim (and (not success) (tp--backward-delim bound))))
+    (unless success
+      (goto-char start))))
 
-(defun tp-forward-sexp (&optional arg)
-  "Move forward across one balanced expression (sexp).
-If `forward-sexp' does not take us past the starting point of the
-next delimiter, then do that.  Otherwise, do
-`tp-forward-list'.
-
+(defun tp-down-list (&optional arg)
+  "Move forward into one balanced group.
 With ARG, do it that many times.  Negative arg -N means move
-backward across N balanced expressions."
+backward into N balanced groups."
   (interactive "^p")
   (or arg (setq arg 1))
   (while (> arg 0)
-    (tp--forward-sexp-1)
+    (tp--down-list-1)
     (setq arg (1- arg)))
   (while (< arg 0)
-    (tp-backward-sexp)
+    (tp--backward-down-list-1)
     (setq arg (1+ arg))))
 
-(defun tp-down-list (&optional bound)
+(defun tp-backward-down-list (&optional arg)
+  "Move backward into one balanced group.
+With ARG, do it that many times.  Negative arg -N means move
+forward into N balanced groups."
+  (interactive "^p")
+  (tp-down-list (- arg)))
+
+(defun tp--down-list-1 (&optional bound)
   "Move forward into one balanced group.
 Search up to BOUND.  Return t if successful, nil otherwise."
   (interactive)
@@ -540,13 +611,29 @@ Search up to BOUND.  Return t if successful, nil otherwise."
       (preview-move-point))
     success))
 
+(defun tp--backward-down-list-1 (&optional bound)
+  "Move backward into one balanced group.
+Search up to BOUND.  Return t if successful, nil otherwise."
+  (interactive)
+  (unless bound (setq bound (tp--backward-bound)))
+  (let ((start (point))
+        (delim (tp--backward-delim bound))
+        success)
+    (when (and delim
+               (tp--backward-search-found-close delim))
+      (setq success t))
+    (unless success
+      (goto-char start))
+    (when (fboundp 'preview-move-point)
+      (preview-move-point))
+    success))
+
 (defun tp-delete-pair (&optional bound)
   "Delete a balanced pair of delimiters that follow point.
 Push a mark at the end of the contents of the pair.
 Search up to BOUND."
   (interactive)
-  (unless bound (setq bound (tp--forward-bound)))
-  (when (tp-down-list bound)
+  (when (tp--down-list-1)
     (save-excursion
       (tp-up-list)
       (let ((q (point)))
