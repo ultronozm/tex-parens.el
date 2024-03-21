@@ -233,17 +233,16 @@ defun-based commands."
     ;; ignore double prime in math-mode
     (equal m-str "''")
     (> (tp--math-face-p) 0))
-   ;; (and
-   ;;  ;; ignore dollar signs that don't matter for whatever reason
-   ;;  (member m-str '("$" "$$"))
-   ;;  (equal
-   ;;   (save-excursion
-   ;;     (goto-char (1- m-begin))
-   ;;     (tp--math-face-p))
-   ;;   (save-excursion
-   ;;     (goto-char m-end)
-   ;;     (tp--math-face-p))))
-   ))
+   (and
+    ;; ignore dollar delimiters that do not demarcate math mode
+    (member m-str '("$" "$$"))
+    (equal
+     (save-excursion
+       (goto-char (1- m-begin))
+       (tp--math-face-p))
+     (save-excursion
+       (goto-char m-end)
+       (tp--math-face-p))))))
 
 (defun tp--search-forward (regexp bound)
   (let (success done)
@@ -258,6 +257,8 @@ defun-based commands."
     (when success
       (match-string 0))))
 
+;; TODO (not essential): speed this up
+
 (defun tp--search-backward (regexp bound)
   (let* ((text (buffer-substring bound (point)))
          (buf (current-buffer))
@@ -271,13 +272,13 @@ defun-based commands."
                 (if (re-search-forward regexp bound t)
                     (when (not
                            (let ((new-point (point))
-                                 (m-string (match-string 0))
-                                 (m-begin (match-beginning 0))
-                                 (m-end (match-end 0)))
+                                 (m-string (match-string 0)))
                              (with-current-buffer buf
                                (save-excursion
                                  (backward-char (1- new-point))
-                                 (tp--ignore m-string m-begin m-end)))))
+                                 (tp--ignore m-string
+                                             (point)
+                                             (+ (point) (length m-string)))))))
                       (setq done t
                             success t))
                   (setq done t)))
@@ -287,6 +288,7 @@ defun-based commands."
       (let ((new-point (car result))
             (match (cdr result)))
         (backward-char (1- new-point))
+        ;; (goto-char (- (point) (1- new-point)))
         (reverse match)))))
 
 (defun tp--forward-bound ()
