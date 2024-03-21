@@ -269,7 +269,7 @@ defun-based commands."
       (setq result
             (let (success done)
               (while (not done)
-                (if (re-search-forward regexp bound t)
+                (if (re-search-forward regexp nil t)
                     (when (not
                            (let ((new-point (point))
                                  (m-string (match-string 0)))
