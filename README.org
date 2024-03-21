@@ -23,7 +23,7 @@ Emacs comes with the following useful commands for working with lists, sexps and
 | -               | delete-pair        | Delete a pair of characters enclosing ARG sexps that follow point. |
 | -               | raise-sexp         | Raise N sexps one level higher up the tree.                        |
 
-This packages provides analogous commands adapted for tex buffers, with the role of parentheses =()=, brackets =[]= and braces ={}= played by the following:
+This package provides analogous commands adapted for tex buffers, with the role of parentheses =()=, brackets =[]= and braces ={}= played by the following:
 - =\begin{...}= - =\end{...}= pairs
 - math environment delimiters =$...$=, =\(...\)=, =\[...\]=, =$$...$$=
 - mathematical delimiters: parentheses, brackets, braces, =\langle= - =\rangle=, =\lvert= - =\rvert=, etc., and compositions of these with modifiers such as =\left= - =\right=, =\Bigg=, etc.  See =M-x customize-group tex-parens= for details.
