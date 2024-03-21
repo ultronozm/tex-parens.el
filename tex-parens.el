@@ -397,6 +397,7 @@ backward across N balanced groups."
 With ARG, do it that many times.  Negative
 arg -N means move forward across N balanced groups."
   (interactive "^p")
+  (unless arg (setq arg 1))
   (tp-forward-list (- arg)))
 
 (defun tp--forward-list-1 (&optional bound)
@@ -592,6 +593,7 @@ backward into N balanced groups."
 With ARG, do it that many times.  Negative arg -N means move
 forward into N balanced groups."
   (interactive "^p")
+  (unless arg (setq arg 1))
   (tp-down-list (- arg)))
 
 (defun tp--down-list-1 (&optional bound)
