@@ -53,6 +53,8 @@ Download this repository, install using =M-x package-install-file= (or package-v
   (LaTeX-mode . tp-setup))
 #+end_src
 
+The precise use-package declaration that I use (with elpaca) may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]].
+
 Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tp-setup)= for the changes to take affect.
 
 * Issues
