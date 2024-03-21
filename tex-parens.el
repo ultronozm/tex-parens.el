@@ -389,7 +389,7 @@ backward across N balanced groups."
     (tp--forward-list-1)
     (setq arg (1- arg)))
   (while (< arg 0)
-    (tp-backward-list)
+    (tp--backward-list-1)
     (setq arg (1+ arg))))
 
 (defun tp-backward-list (&optional arg)
@@ -397,8 +397,7 @@ backward across N balanced groups."
 With ARG, do it that many times.  Negative
 arg -N means move forward across N balanced groups."
   (interactive "^p")
-  (unless arg (setq arg 1))
-  (tp-forward-list (- arg)))
+  (tp-forward-list (- (or arg 1))))
 
 (defun tp--forward-list-1 (&optional bound)
   "Move forward across one balanced group.
@@ -478,7 +477,7 @@ next delimiter, then do that.  Otherwise, do
 With ARG, do it that many times.  Negative arg -N means move
 backward across N balanced expressions."
   (interactive "^p")
-  (tp-forward-sexp (- arg)))
+  (tp-forward-sexp (- (or arg 1))))
 
 (defun tp--forward-sexp-1 ()
   "Move forward across one balanced expression (sexp).
@@ -531,7 +530,7 @@ backward out of N balanced groups."
 With ARG, do it that many times.  Negative arg -N means move
 forward out of N balanced groups."
   (interactive "^p")
-  (tp-up-list (- arg)))
+  (tp-up-list (- (or arg 1))))
 
 (defun tp--up-list-1 (&optional bound)
   "Move forward out of one balanced group.
@@ -593,8 +592,7 @@ backward into N balanced groups."
 With ARG, do it that many times.  Negative arg -N means move
 forward into N balanced groups."
   (interactive "^p")
-  (unless arg (setq arg 1))
-  (tp-down-list (- arg)))
+  (tp-down-list (- (or arg 1))))
 
 (defun tp--down-list-1 (&optional bound)
   "Move forward into one balanced group.
