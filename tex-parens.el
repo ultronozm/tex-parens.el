@@ -158,6 +158,8 @@ form delimiters which are visibly `left'/`opening' or
 (defvar tp--pairs-swap nil)
 (defvar tp--delims nil)
 (defvar tp--regexp nil)
+(defvar tp--regexp-open nil)
+(defvar tp--regexp-close nil)
 (defvar tp--regexp-reverse nil)
 
 (defvar preview-auto-reveal)
@@ -176,10 +178,16 @@ form delimiters which are visibly `left'/`opening' or
   (setq tp--pairs-swap
         (mapcar (lambda (x) (cons (cdr x) (car x))) tp--pairs))
   (setq tp--delims (append (mapcar #'car tp--pairs)
-                                   (mapcar #'cdr tp--pairs)))
+                           (mapcar #'cdr tp--pairs)))
   (setq tp--regexp
         (concat (regexp-opt tp--delims)
                 "\\|\\\\begin{[^}]+}\\|\\\\end{[^}]+}"))
+  (setq tp--regexp-open
+        (concat (regexp-opt (mapcar #'car tp--pairs))
+                "\\|\\\\begin{[^}]+}"))
+  (setq tp--regexp-close
+        (concat (regexp-opt (mapcar #'cdr tp--pairs))
+                "\\|\\\\end{[^}]+}"))
   (setq tp--regexp-reverse
         (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
                 (regexp-opt (mapcar #'reverse tp--delims))))
@@ -485,11 +493,15 @@ Helper function for `tp-forward-sexp'."
   (let ((delim-beg (save-excursion
                      (tp--forward-delim)
                      (match-beginning 0)))
-        (vanilla (save-excursion
-                   (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
-                   (point))))
-    (if (and delim-beg
-             (> vanilla delim-beg))
+        (vanilla
+         (condition-case _
+             (save-excursion
+               (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
+               (point))
+           (scan-error nil))))
+    (if (or (not vanilla)
+            (and delim-beg
+                 (> vanilla delim-beg)))
         (tp--forward-list-1)
       (goto-char vanilla))))
 
@@ -503,12 +515,16 @@ the previous delimiter, then do that.  Otherwise, do
                      (when-let ((delim (tp--backward-delim)))
                        (forward-char (length delim))
                        (point))))
-        (vanilla (save-excursion
-                   (goto-char (or (scan-sexps (point) -1) (buffer-end -1)))
-                   (backward-prefix-chars)
-                   (point))))
-    (if (and delim-end
-             (< vanilla delim-end))
+        (vanilla
+         (condition-case _
+             (save-excursion
+               (goto-char (or (scan-sexps (point) -1) (buffer-end -1)))
+               (backward-prefix-chars)
+               (point))
+           (scan-error nil))))
+    (if (or (not vanilla)
+            (and delim-end
+                 (< vanilla delim-end)))
         (tp--backward-list-1)
       (goto-char vanilla))))
 
@@ -628,10 +644,9 @@ Search up to BOUND.  Return t if successful, nil otherwise."
       (preview-move-point))
     success))
 
-(defun tp-delete-pair (&optional bound)
+(defun tp-delete-pair ()
   "Delete a balanced pair of delimiters that follow point.
-Push a mark at the end of the contents of the pair.
-Search up to BOUND."
+Push a mark at the end of the contents of the pair."
   (interactive)
   (when (tp--down-list-1)
     (save-excursion
@@ -791,6 +806,140 @@ and point is before (zot), \\[raise-sexp] will give you
     (tp-backward-up-list)
     (delete-region (point) (save-excursion (tp-forward-sexp 1) (point)))
     (save-excursion (insert s))))
+
+;;; BURP
+
+(defun tp--slurp-left ()
+  "Slurp the next sexp into the current one, to the left."
+  (when-let ((pos (point))
+             (match (when (looking-at tp--regexp) (match-string 0))))
+    (delete-region (point) (+ (point) (length match)))
+    (condition-case nil
+        (progn
+          (tp-backward-sexp)
+          (insert match)
+          (backward-char (length match)))
+      (error
+       (goto-char pos)
+       (insert match)
+       (backward-char (length match))))))
+
+(defun tp--barf-left ()
+  "Barf the next sexp out of the current one, to the right."
+  (when-let* ((pos (point))
+              (bound (save-excursion (backward-char 30) (point)))
+              (text (buffer-substring bound pos))
+              (reversed-text (reverse text))
+              (reverse-match
+               (with-temp-buffer
+                 (insert reversed-text)
+                 (goto-char (point-min))
+                 (when (looking-at tp--regexp-reverse)
+                   (match-string 0))))
+              (match (reverse reverse-match)))
+    (backward-char (length match))
+    (progn
+      (tp-backward-sexp)
+      (let ((q
+             (save-excursion
+               (tp-forward-sexp)
+               (point))))
+        (tp-backward-sexp)
+        (when (not (equal q
+                          (save-excursion
+                            (tp-forward-sexp)
+                            (point))))
+          (tp-forward-sexp))))
+    (insert match)
+    (save-excursion
+      (goto-char pos)
+      (delete-char (length match)))))
+
+(defun tp-burp-left ()
+  "Slurp or barf to the right.
+If the point is before a list, slurp the next sexp into the list.
+If the point is after a list, barf the last sexp out of the list.
+If the point is before a quote, slurp the next sexp into the quote.
+If the point is after a quote, barf the last sexp out of the quote.
+Otherwise, call `self-insert-command'."
+  (interactive)
+  (cond
+   ((and
+     (not (looking-back tp--regexp-open (save-excursion (backward-char 30) (point))))
+     (looking-back tp--regexp-close (save-excursion (backward-char 30) (point))))
+    (tp--barf-left))
+   ((and
+     (not (looking-at tp--regexp-close))
+     (looking-at tp--regexp-open))
+    (tp--slurp-left))
+   (t
+    (call-interactively #'self-insert-command))))
+
+(defun tp--barf-right ()
+  "Barf the next sexp out of the current one, to the right."
+  (let ((pos (point))
+        (match (when (looking-at tp--regexp) (match-string 0))))
+    (forward-char (length match))
+    (progn
+      (tp-forward-sexp)
+      (let ((q
+             (save-excursion
+               (tp-backward-sexp)
+               (point))))
+        (tp-forward-sexp)
+        (when (not (equal q
+                          (save-excursion
+                            (tp-backward-sexp)
+                            (point))))
+          (tp-backward-sexp))))
+    (insert match)
+    (save-excursion
+      (goto-char pos)
+      (delete-char (length match)))
+    (backward-char (length match))))
+
+(defun tp--slurp-right ()
+  "Slurp the next sexp into the current one, to the right."
+  (when-let* ((pos (point))
+              (bound (save-excursion (backward-char 30) (point)))
+              (text (buffer-substring bound pos))
+              (reversed-text (reverse text))
+              (reverse-match
+               (with-temp-buffer
+                 (insert reversed-text)
+                 (goto-char (point-min))
+                 (when (looking-at tp--regexp-reverse)
+                   (match-string 0))))
+              (match (reverse reverse-match)))
+    (condition-case nil
+        (progn
+          (tp-forward-sexp)
+          (insert match)
+          (save-excursion
+            (goto-char pos)
+            (backward-char (length match))
+            (delete-char (length match))))
+      (error nil))))
+
+(defun tp-burp-right ()
+  "Slurp or barf to the right.
+If the point is before a list, slurp the next sexp into the list.
+If the point is after a list, barf the last sexp out of the list.
+If the point is before a quote, slurp the next sexp into the quote.
+If the point is after a quote, barf the last sexp out of the quote.
+Otherwise, call `self-insert-command'."
+  (interactive)
+  (cond
+   ((and
+     (not (looking-back tp--regexp-open (save-excursion (backward-char 30) (point))))
+     (looking-back tp--regexp-close (save-excursion (backward-char 30) (point))))
+    (tp--slurp-right))
+   ((and
+     (not (looking-at tp--regexp-close))
+     (looking-at tp--regexp-open))
+    (tp--barf-right))
+   (t
+    (call-interactively #'self-insert-command))))
 
 (provide 'tex-parens)
 ;;; tex-parens.el ends here
