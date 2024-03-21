@@ -1,4 +1,4 @@
-;;; tex-parens.el --- list and sexp navigation for tex modes  -*- lexical-binding: t; -*-
+;;; tex-parens.el --- lisp.el but for tex  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024  Paul D. Nelson
 
@@ -33,11 +33,11 @@
 ;;   (:map LaTeX-mode-map
 ;;         ("C-M-f" . tex-parens-forward-sexp)
 ;;         ("C-M-b" . tex-parens-backward-sexp)
-;;         ("C-M-n" . tex-parens-forward)
-;;         ("C-M-p" . tex-parens-backward)
-;;         ("C-M-u" . tex-parens-backward-up)
-;;         ("M-u" . tex-parens-up)
-;;         ("C-M-g" . tex-parens-down)
+;;         ("C-M-n" . tex-parens-forward-list)
+;;         ("C-M-p" . tex-parens-backward-list)
+;;         ("C-M-u" . tex-parens-backward-up-list)
+;;         ("M-u" . tex-parens-up-list)
+;;         ("C-M-g" . tex-parens-down-list)
 ;;         ("M-_" . tex-parens-delete-pair)
 ;;         ("C-M-SPC" . tex-parens-mark-sexp)
 ;;         ("C-M-k" . tex-parens-kill-sexp)
@@ -55,7 +55,7 @@
    preview-auto-reveal
    '(eval (preview-arrived-via (key-binding [left])
                                (key-binding [right])
-                               #'backward-char #'forward-char #'tex-parens-down)))
+                               #'backward-char #'forward-char #'tex-parens-down-list)))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
   (setq-local end-of-defun-function #'tex-parens--end-of-defun)
   ;; don't know why, but this freezes Emacs:
@@ -86,17 +86,17 @@
 This function is a wrapper around `forward-sexp' that uses
 tex-parens to identify the next delimiter.  If `forward-sexp'
 does not take us past the starting point of the next delimiter, then
-do that.  Otherwise, do `tex-parens-forward'."
+do that.  Otherwise, do `tex-parens-forward-list'."
   (interactive)
   (let ((delim-beg (save-excursion
-                     (tex-parens-basic-forward)
+                     (tex-parens--forward-delim)
                      (match-beginning 0)))
         (vanilla (save-excursion
                    (goto-char (or (scan-sexps (point) 1) (buffer-end 1)))
                    (point))))
     (if (and delim-beg
-             (>= vanilla delim-beg))
-        (tex-parens-forward)
+             (> vanilla delim-beg))
+        (tex-parens-forward-list)
       (goto-char vanilla))))
 
 (defun tex-parens-backward-sexp ()
@@ -104,10 +104,10 @@ do that.  Otherwise, do `tex-parens-forward'."
 This function is a wrapper around `backward-sexp' that uses
 tex-parens to identify the previous delimiter.  If `backward-sexp'
 does not take us beyond the ending point of the previous
-delimiter, then do that.  Otherwise, do `tex-parens-backward'."
+delimiter, then do that.  Otherwise, do `tex-parens-backward-list'."
   (interactive)
   (let ((delim-end (save-excursion
-                     (when-let ((delim (tex-parens-basic-backward)))
+                     (when-let ((delim (tex-parens--backward-delim)))
                        (forward-char (length delim))
                        (point))))
         (vanilla (save-excursion
@@ -115,8 +115,8 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
                    (backward-prefix-chars)
                    (point))))
     (if (and delim-end
-             (<= vanilla delim-end))
-        (tex-parens-backward)
+             (< vanilla delim-end))
+        (tex-parens-backward-list)
       (goto-char vanilla))))
 
 (defvar tex-parens-pairs
@@ -168,13 +168,13 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
      (point-min)
      (- (point) 500))))
 
-(defun tex-parens-basic-forward (&optional bound)
+(defun tex-parens--forward-delim (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
   (when (re-search-forward (tex-parens-regexp) bound t)
     (match-string 0)))
 
-(defun tex-parens-basic-backward (&optional bound)
+(defun tex-parens--backward-delim (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-backward)))
   (let* ((text (buffer-substring-no-properties bound (point)))
@@ -213,11 +213,11 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
 
 (defvar tex-parens--debug nil)
 
-(defun tex-parens-forward (&optional bound)
+(defun tex-parens-forward-list (&optional bound)
   "Find next TeX sexp. Moves point to end of sexp."
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
-  (let ((delim (tex-parens-basic-forward bound))
+  (let ((delim (tex-parens--forward-delim bound))
         (stack ()))
     (while delim
       (cond
@@ -240,17 +240,22 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
                     (message "Mismatched delimiters: %s %s" (car stack) delim)))
                 (pop stack))
             (backward-char (length delim))))))
-      (setq delim (and stack (tex-parens-basic-forward bound))))))
+      (setq delim (and stack (tex-parens--forward-delim bound))))
+    (when stack
+      (goto-char start)
+      (when tex-parens--debug
+        (message "Unmatched delimiters: %s" (car stack))))))
 
 ;; (defun tex-parens-delim-pair (delim)
 ;;   (or (assoc delim tex-parens-pairs)
 ;;       (assoc delim (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens-pairs))))
 
-(defun tex-parens-backward (&optional bound)
+(defun tex-parens-backward-list (&optional bound)
   "Find previous TeX sexp. Moves point to start of sexp."
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-backward)))
-  (let ((delim (tex-parens-basic-backward bound))
+  (let ((start (point))
+        (delim (tex-parens--backward-delim bound))
         (stack ()))
     (while delim
       (cond
@@ -282,17 +287,21 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
         ;;   (forward-char (length delim)))
         )
        )
-      (setq delim (and stack (tex-parens-basic-backward bound))))))
+      (setq delim (and stack (tex-parens--backward-delim bound))))
+    (when stack
+      (goto-char start)
+      (when tex-parens--debug
+        (message "Unmatched delimiters: %s" (car stack))))))
 
 
-(defun tex-parens-backward-up (&optional bound)
+(defun tex-parens-backward-up-list (&optional bound)
   "Find previous TeX sexp. Moves point to start of sexp."
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-backward)))
   (let ((start (point))
-        (delim (tex-parens-basic-backward bound))
-        (stack ())
-        success)
+        success
+        (delim (tex-parens--backward-delim bound))
+        (stack ()))
     (while delim
       (cond 
        ((or
@@ -326,16 +335,16 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
         ;;   (setq success t))
         )
        )
-      (setq delim (and (not success) (tex-parens-basic-backward bound))))
+      (setq delim (and (not success) (tex-parens--backward-delim bound))))
     (unless success
       (goto-char start))))
 
-(defun tex-parens-up (&optional bound)
+(defun tex-parens-up-list (&optional bound)
   "Find previous TeX sexp. Moves point to start of sexp."
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
   (let ((start (point))
-        (delim (tex-parens-basic-forward bound))
+        (delim (tex-parens--forward-delim bound))
         (stack ())
         success)
     (while delim
@@ -363,15 +372,15 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
         ;;   (setq success t))
         )
        )
-      (setq delim (and (not success) (tex-parens-basic-forward bound))))
+      (setq delim (and (not success) (tex-parens--forward-delim bound))))
     (unless success
       (goto-char start))))
 
-(defun tex-parens-down (&optional bound)
+(defun tex-parens-down-list (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
   (let ((start (point))
-        (delim (tex-parens-basic-forward bound))
+        (delim (tex-parens--forward-delim bound))
         success)
     (when (and delim
                (or
@@ -387,15 +396,15 @@ delimiter, then do that.  Otherwise, do `tex-parens-backward'."
 (defun tex-parens-delete-pair (&optional bound)
   (interactive)
   (unless bound (setq bound (tex-parens-bound-default-forward)))
-  (tex-parens-down)
+  (tex-parens-down-list)
   (save-excursion
-    (tex-parens-up)
+    (tex-parens-up-list)
     (let ((q (point)))
-      (tex-parens-basic-backward)
+      (tex-parens--backward-delim)
       (delete-region (point) q)
       (push-mark)))
   (let ((q (point)))
-    (tex-parens-basic-backward)
+    (tex-parens--backward-delim)
     (delete-region (point) q)))
 
 ;; it shouldn't be necessary to define any of the following -- it
@@ -538,7 +547,7 @@ and point is before (zot), \\[raise-sexp] will give you
              (buffer-substring
               (point)
               (save-excursion (tex-parens-forward-sexp n) (point))))))
-    (tex-parens-backward-up)
+    (tex-parens-backward-up-list)
     (delete-region (point) (save-excursion (tex-parens-forward-sexp 1) (point)))
     (save-excursion (insert s))))
 
