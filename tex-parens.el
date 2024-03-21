@@ -41,7 +41,7 @@
 ;;         ("M-_" . tex-parens-delete-pair)
 ;;         ("C-M-SPC" . tex-parens-mark-sexp)
 ;;         ("C-M-k" . tex-parens-kill-sexp)
-;;         ("C-M-t" . tex-parens-transpose-sexps)
+;;         ("C-M-t" . transpose-sexps)
 ;;         ("C-M-<backspace>" . tex-parens-backward-kill-sexp)
 ;;         ("M-+" . tex-parens-raise-sexp))
 ;;   :hook
@@ -49,28 +49,7 @@
 
 ;;; Code:
 
-;; (defvar tex-parens-pairs
-;;   '(("(" . ")")
-;;     ("\\Big(" . "\\Big)")
-;;     ("\\left(" . "\\right)")
-;;     ("[" . "]")
-;;     ("\\left[" . "\\right]")
-;;     ("{" . "}")
-;;     ("\\{" . "\\}")
-;;     ("\\left\\{" . "\\right\\}")
-;;     ("\\langle" . "\\rangle")
-;;     ("\\left\\langle" . "\\right\\rangle")
-;;     ("\\lvert" . "\\rvert")
-;;     ("\\left\\lvert" . "\\right\\rvert")
-;;     ("\\lVert" . "\\rVert")
-;;     ("\\left\\lVert" . "\\right\\rVert")
-;;     ("\\left|" . "\\right|")
-;;     ("\\left." . "\\right.")
-;;     ("$" . "$")
-;;     ("$$" . "$$")
-;;     ("\\(" . "\\)")
-;;     ("\\[" . "\\]")
-;;     ("``" . "''")))
+(require 'cl-lib)
 
 (defun tex-parens--beginning-of-defun ()
   "Move to the beginning of the current defun.
@@ -104,10 +83,7 @@ Here `defun' means top-level environment."
            ("\\biggl" . "\\biggr")
            ("\\Biggl" . "\\Biggr")))
         (ambiguous-modifiers
-         '("\\big"
-           "\\Big"
-           "\\bigg"
-           "\\Bigg"))
+         '("\\big" "\\Big" "\\bigg" "\\Bigg"))
         (other-parens
          '(("``" . "''")
            ("$" . "$")
@@ -162,6 +138,7 @@ Here `defun' means top-level environment."
                                (key-binding [right])
                                #'backward-char #'forward-char #'tex-parens-down-list)))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
+  (setq-local transpose-sexps-default-function #'tex-parens-transpose-sexps-default-function)
   (setq end-of-defun-function #'tex-parens--end-of-defun)
   (setq tex-parens--pairs (tex-parens--generate-pairs))
   (setq tex-parens--pairs-swap
@@ -179,7 +156,7 @@ Here `defun' means top-level environment."
   ;; uncommented.  For this reason, we have to go through the
   ;; awkwardness of duplicating several functions near the bottom of
   ;; this file.
-  ;; 
+
   ;; (setq-local forward-sexp-function #'tex-parens-forward-sexp)
   )
 
@@ -267,26 +244,20 @@ Search up to BOUND."
         (delim (tex-parens--forward-delim bound))
         (stack ()))
     (while delim
-      (cond
-       ((or
-         (and (member delim '("$" "$$"))
-              (tex-parens--math-face-p))
-         (and (not (member delim '("$" "$$")))
-              (tex-parens--close-of-open delim)))   ; Opening delimiter
-        (push delim stack))
-       (t
+      (if (or (and (member delim '("$" "$$"))
+                   (tex-parens--math-face-p))
+              (and (not (member delim '("$" "$$")))
+                   (tex-parens--close-of-open delim)))
+          (push delim stack)
         (let ((other (tex-parens--open-of-close delim)))
           (cl-assert other)
-          ;; (if (equal other (car stack))
-          ;;     (pop stack)
-          ;;   (backward-char (length delim)))
           (if stack
               (progn
                 (when tex-parens--debug
                   (unless (equal other (car stack))
                     (message "Mismatched delimiters: %s %s" (car stack) delim)))
                 (pop stack))
-            (backward-char (length delim))))))
+            (backward-char (length delim)))))
       (setq delim (and stack (tex-parens--forward-delim bound))))
     (when stack
       (goto-char start)
@@ -302,16 +273,13 @@ Search up to BOUND."
         (delim (tex-parens--backward-delim bound))
         (stack ()))
     (while delim
-      (cond
-       ((or
-         (and (member delim '("$" "$$"))
-              (save-excursion
-                (backward-char (length delim))
-                (tex-parens--math-face-p)))
-         (and (not (member delim '("$" "$$")))
-              (tex-parens--open-of-close delim)))
-        (push delim stack))
-       (t
+      (if (or (and (member delim '("$" "$$"))
+                   (save-excursion
+                     (backward-char (length delim))
+                     (tex-parens--math-face-p)))
+              (and (not (member delim '("$" "$$")))
+                   (tex-parens--open-of-close delim)))
+          (push delim stack)
         (let ((other (tex-parens--close-of-open delim)))
           (cl-assert other)
           (if stack
@@ -320,16 +288,7 @@ Search up to BOUND."
                   (unless (equal other (car stack))
                     (message "Mismatched delimiters: %s %s" delim (car stack))))
                 (pop stack))
-            (forward-char (length delim))
-            ;; (push delim stack)
-            ))
-        ;; (assoc delim tex-parens-pairs)
-                                        ; Opening delimiter
-        ;; (if (equal (cdr (tex-parens-delim-pair delim)) (car stack))
-        ;;     (pop stack)
-        ;;   (forward-char (length delim)))
-        )
-       )
+            (forward-char (length delim)))))
       (setq delim (and stack (tex-parens--backward-delim bound))))
     (when stack
       (goto-char start)
@@ -592,7 +551,8 @@ report errors as appropriate for this kind of usage."
   (tex-parens-kill-sexp (- (or arg 1)) interactive))
 
 (defun tex-parens-transpose-sexps-default-function (arg)
-  "Default method to locate a pair of points for transpose-sexps."
+  "Default method to locate a pair of points for `transpose-sexps'.
+ARG is as in the docstring for `transpose-sexps'."
   ;; Here we should try to simulate the behavior of
   ;; (cons (progn (forward-sexp x) (point))
   ;;       (progn (forward-sexp (- x)) (point)))
