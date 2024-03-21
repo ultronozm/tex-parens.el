@@ -290,8 +290,8 @@ Assumes that REGEXP-REVERSE is the reverse of REGEXP."
             ;; to the reversed text
             (goto-char (match-end 0))
             (let ((text (buffer-substring-no-properties
-                         (save-excursion (backward-char tp-max-delim-length)
-                                         (point))
+                         (max (point-min)
+                              (- (point) tp-max-delim-length))
                          (point))))
               (with-temp-buffer
                 (insert (reverse text))
@@ -837,7 +837,8 @@ and point is before (zot), \\[raise-sexp] will give you
 (defun tp--barf-left ()
   "Barf the next sexp out of the current one, to the right."
   (when-let* ((pos (point))
-              (bound (save-excursion (backward-char tp-max-delim-length) (point)))
+              (bound (max (point-min)
+                          (- (point) tp-max-delim-length)))
               (text (buffer-substring bound pos))
               (reversed-text (reverse text))
               (reverse-match
@@ -875,8 +876,8 @@ Otherwise, call `self-insert-command'."
   (interactive)
   (cond
    ((and
-     (not (looking-back tp--regexp-open (save-excursion (backward-char tp-max-delim-length) (point))))
-     (looking-back tp--regexp-close (save-excursion (backward-char tp-max-delim-length) (point))))
+     (not (looking-back tp--regexp-open (max (point-min) (- (point) tp-max-delim-length))))
+     (looking-back tp--regexp-close (max (point-min) (- (point) tp-max-delim-length))))
     (tp--barf-left))
    ((and
      (not (looking-at tp--regexp-close))
@@ -911,7 +912,8 @@ Otherwise, call `self-insert-command'."
 (defun tp--slurp-right ()
   "Slurp the next sexp into the current one, to the right."
   (when-let* ((pos (point))
-              (bound (save-excursion (backward-char tp-max-delim-length) (point)))
+              (bound (max (point-min)
+                          (- (point) tp-max-delim-length)))
               (text (buffer-substring bound pos))
               (reversed-text (reverse text))
               (reverse-match
@@ -941,8 +943,8 @@ Otherwise, call `self-insert-command'."
   (interactive)
   (cond
    ((and
-     (not (looking-back tp--regexp-open (save-excursion (backward-char tp-max-delim-length) (point))))
-     (looking-back tp--regexp-close (save-excursion (backward-char tp-max-delim-length) (point))))
+     (not (looking-back tp--regexp-open (max (point-min) (- (point) tp-max-delim-length))))
+     (looking-back tp--regexp-close (max (point-min) (- (point) tp-max-delim-length))))
     (tp--slurp-right))
    ((and
      (not (looking-at tp--regexp-close))
