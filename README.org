@@ -56,6 +56,5 @@ Download this repository, install using =M-x package-install-file= (or package-v
 Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tp-setup)= for the changes to take affect.
 
 * Issues
-1. This isn't really an issue in the sense that it doesn't affect usage, but it shouldn't have been necessary to define the functions =tp-mark-sexp=, =tp-kill-sexp=, =tp-backward-kill-sexp=, =tp-raise-sexp= -- it should suffice to use the
-built-in functions =mark-sexp=, =kill-sexp=, =backward-kill-sexp=, =raise-sexp= with the local variable =forward-sexp-function= set to =#'tp-forward-sexp=.  Unfortunately, Emacs freezes when I attempt to do so, for reasons that I haven't been able to debug.
+1. This isn't really an issue in the sense that it doesn't affect usage, but it shouldn't have been necessary to define the functions =tp-mark-sexp=, =tp-kill-sexp=, =tp-backward-kill-sexp=, =tp-raise-sexp= -- it should suffice to use the built-in functions =mark-sexp=, =kill-sexp=, =backward-kill-sexp=, =raise-sexp= with the local variable =forward-sexp-function= set to =#'tp-forward-sexp=.  Unfortunately, Emacs freezes when I attempt to do so, for reasons that I haven't been able to debug.
 
