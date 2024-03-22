@@ -735,7 +735,7 @@ report errors as appropriate for this kind of usage."
   (interactive "p\nd")
   (if interactive
       (condition-case _
-          (kill-sexp arg nil)
+          (tp-kill-sexp arg nil)
         (scan-error (user-error (if (> arg 0)
                                     "No next sexp"
                                   "No previous sexp"))))
