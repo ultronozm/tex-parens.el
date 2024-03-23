@@ -176,7 +176,17 @@ form delimiters which are visibly `left'/`opening' or
    preview-auto-reveal
    '(eval (preview-arrived-via (key-binding [left])
                                (key-binding [right])
-                               #'backward-char #'forward-char #'tp-down-list)))
+                               #'backward-char #'forward-char
+                               #'tp-down-list
+                               #'tp-backward-down-list)))
+  (when (boundp 'TeX-fold-auto-reveal)
+    (setq TeX-fold-auto-reveal
+          '(eval (preview-arrived-via (key-binding [left])
+                                      (key-binding [right])
+                                      #'backward-char #'forward-char
+                                      #'mouse-set-point
+                                      #'tp-down-list
+                                      #'tp-backward-down-list))))
   (setq-local beginning-of-defun-function #'tp--beginning-of-defun)
   (setq-local transpose-sexps-default-function #'tp-transpose-sexps-default-function)
   (setq end-of-defun-function #'tp--end-of-defun)
