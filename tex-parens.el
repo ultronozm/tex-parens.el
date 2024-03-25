@@ -115,7 +115,7 @@ Here `defun' means top-level environment."
   "Left/right delimiters not to be combined with modifiers."
   :type '(repeat (cons string string)))
 
-(defcustom tp-max-delim-length 25
+(defcustom tp-max-delim-length 50
   "Maximum length of a delimiter.
 This is comfortably larger than `\biggl\langle' and
 `\begin{proposition}', for example."
@@ -202,14 +202,20 @@ form delimiters which are visibly `left'/`opening' or
   (setq tp--delims (append (mapcar #'car tp--pairs)
                            (mapcar #'cdr tp--pairs)))
   (setq tp--regexp
-        (concat (regexp-opt tp--delims)
-                "\\|\\\\begin{[^}]+}"
-                "\\|\\\\end{[^}]+}"
-                "\\|\\\\[a-zA-Z]+\\[[^]]+\\]{"
-                "\\|\\\\[a-zA-Z]+{"
-                ))
+        (concat "\\\\begin{[^}]+}\\[[^]]+\\]"
+                "\\|"
+                "\\\\begin{[^}]+}"
+                "\\|"
+                "\\\\end{[^}]+}"
+                "\\|"
+                "\\\\[a-zA-Z]+\\[[^]]+\\]{"
+                "\\|"
+                "\\\\[a-zA-Z]+{"
+                "\\|"
+                (regexp-opt tp--delims)))
   (setq tp--regexp-open
         (concat (regexp-opt (mapcar #'car tp--pairs))
+                "\\|\\\\begin{[^}]+}\\[[^]]+\\]"
                 "\\|\\\\begin{[^}]+}"
                 "\\|\\\\[a-zA-Z]+\\[[^]]+\\]{"
                 "\\|\\\\[a-zA-Z]+{"))
@@ -217,7 +223,9 @@ form delimiters which are visibly `left'/`opening' or
         (concat (regexp-opt (mapcar #'cdr tp--pairs))
                 "\\|\\\\end{[^}]+}"))
   (setq tp--regexp-reverse
-        (concat "}[^{]+{nigeb\\\\\\|"
+        (concat "\\][^[]+\\[]}[^{]+{nigeb\\\\\\|"
+                "}[^{]+{nigeb\\\\"
+                "\\|"
                 "}[^{]+{dne\\\\\\|"
                 "{[a-zA-Z]+\\\\\\|"
                 "{\\][^]]+\\[[a-zA-Z]+\\\\\\|"
@@ -369,7 +377,9 @@ delimiter.  Otherwise, return nil."
    (cdr (assoc delim tp--pairs))
    (and (stringp delim)
         (or
-         (and (string-match "\\\\begin{\\([^}]+\\)}" delim)
+         (and (or
+               (string-match "\\\\begin{\\([^}]+\\)}\\[[^]]+\\]" delim)
+               (string-match "\\\\begin{\\([^}]+\\)}" delim))
               (let ((type (match-string 1 delim)))
                 (format "\\end{%s}" type)))
          (unless (string-match "\\\\end{\\([^}]+\\)}" delim)
