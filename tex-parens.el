@@ -255,12 +255,12 @@ defun-based commands."
 
 (defun tp--ignore (m-str m-begin m-end)
   "Check if M-STR should be ignored.
-M-STR is the string matched by the search, M-BEGIN is the
-beginning of the match, and M-END is the end of the match.  If
-TP-IGNORE-COMMENTS is non-nil, then ignore comments.  If M-STR is
-a double prime in math mode, then ignore it.  If M-STR is a
-dollar delimiter that does not demarcate math mode, then ignore
-it."
+M-STR is the string matched by the search, while M-BEGIN and
+M-END delimit the match.  If `tp-ignore-comments' is non-nil,
+then ignore comments; these are detected via
+`font-lock-comment-face'.  If M-STR is a double prime in math
+mode, then ignore it.  If M-STR is a dollar delimiter that does
+not demarcate math mode, then ignore it."
   (or
    (and
     tp-ignore-comments
