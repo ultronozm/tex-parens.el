@@ -223,7 +223,8 @@ form delimiters which are visibly `left'/`opening' or
         (concat (regexp-opt (mapcar #'cdr tp--pairs))
                 "\\|\\\\end{[^}]+}"))
   (setq tp--regexp-reverse
-        (concat "\\][^[]+\\[]}[^{]+{nigeb\\\\\\|"
+        (concat "\\][^[]+\\[}[^{]+{nigeb\\\\"
+                "\\|"
                 "}[^{]+{nigeb\\\\"
                 "\\|"
                 "}[^{]+{dne\\\\\\|"
