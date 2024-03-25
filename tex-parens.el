@@ -270,17 +270,17 @@ not demarcate math mode, then ignore it."
    (and
     ;; ignore double prime in math-mode
     (equal m-str "''")
-    (> (tp--math-face-p) 0))
+    (> (tp--math-face) 0))
    (and
     ;; ignore dollar delimiters that do not demarcate math mode
     (member m-str '("$" "$$"))
     (equal
      (save-excursion
        (goto-char (1- m-begin))
-       (tp--math-face-p))
+       (tp--math-face))
      (save-excursion
        (goto-char m-end)
-       (tp--math-face-p))))))
+       (tp--math-face))))))
 
 (defun tp--search-forward (regexp bound)
   "Search forward for REGEXP up to BOUND."
@@ -327,14 +327,14 @@ Assumes that REGEXP-REVERSE is the reverse of REGEXP."
       match)))
 
 (defun tp--forward-bound ()
-  "Return the bound for forward search."
+  "Return the default bound for forward search."
   (save-excursion
     (min
      (point-max)
      (+ (point) tp-search-limit))))
 
 (defun tp--backward-bound ()
-  "Return the bound for backward search."
+  "Return the default bound for backward search."
   (save-excursion
     (max
      (point-min)
@@ -381,10 +381,10 @@ delimiter.  Otherwise, return nil."
   (cond
    ((member delim '("$" "$$"))
     (>
-     (tp--math-face-p)
+     (tp--math-face)
      (save-excursion
        (backward-char (1+ (length delim)))
-       (tp--math-face-p))
+       (tp--math-face))
      ))
    (t
     (tp--close-of-open delim))))
@@ -396,10 +396,10 @@ delimiter.  Otherwise, return nil."
     (>
      (save-excursion
        (backward-char 1)
-       (tp--math-face-p))
+       (tp--math-face))
      (save-excursion
        (forward-char (length delim))
-       (tp--math-face-p))))
+       (tp--math-face))))
    (t
     (tp--open-of-close delim))))
 
