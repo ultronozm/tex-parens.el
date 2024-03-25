@@ -203,15 +203,24 @@ form delimiters which are visibly `left'/`opening' or
                            (mapcar #'cdr tp--pairs)))
   (setq tp--regexp
         (concat (regexp-opt tp--delims)
-                "\\|\\\\begin{[^}]+}\\|\\\\end{[^}]+}"))
+                "\\|\\\\begin{[^}]+}"
+                "\\|\\\\end{[^}]+}"
+                "\\|\\\\[a-zA-Z]+\\[[^]]+\\]{"
+                "\\|\\\\[a-zA-Z]+{"
+                ))
   (setq tp--regexp-open
         (concat (regexp-opt (mapcar #'car tp--pairs))
-                "\\|\\\\begin{[^}]+}"))
+                "\\|\\\\begin{[^}]+}"
+                "\\|\\\\[a-zA-Z]+\\[[^]]+\\]{"
+                "\\|\\\\[a-zA-Z]+{"))
   (setq tp--regexp-close
         (concat (regexp-opt (mapcar #'cdr tp--pairs))
                 "\\|\\\\end{[^}]+}"))
   (setq tp--regexp-reverse
-        (concat "}[^{]+{nigeb\\\\\\|}[^{]+{dne\\\\\\|"
+        (concat "}[^{]+{nigeb\\\\\\|"
+                "}[^{]+{dne\\\\\\|"
+                "{[a-zA-Z]+\\\\\\|"
+                "{\\][^]]+\\[[a-zA-Z]+\\\\\\|"
                 (regexp-opt (mapcar #'reverse tp--delims))))
 
   ;; Don't know why, but Emacs freezes with the following line
@@ -359,9 +368,13 @@ delimiter.  Otherwise, return nil."
   (or
    (cdr (assoc delim tp--pairs))
    (and (stringp delim)
-        (string-match "\\\\begin{\\([^}]+\\)}" delim)
-        (let ((type (match-string 1 delim)))
-          (format "\\end{%s}" type)))))
+        (or
+         (and (string-match "\\\\begin{\\([^}]+\\)}" delim)
+              (let ((type (match-string 1 delim)))
+                (format "\\end{%s}" type)))
+         (unless (string-match "\\\\end{\\([^}]+\\)}" delim)
+           (and (string-match "\\\\[a-zA-Z]+\\[[^]]+\\]{\\|\\\\[a-zA-Z]+{" delim)
+                "}"))))))
 
 (defun tp--open-of-close (delim)
   "Check if DELIM is closing, return the corresponding opening.
