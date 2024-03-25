@@ -73,7 +73,7 @@ Here `defun' means top-level environment."
   "Move to the end of the current defun.
 Here `defun' means top-level environment."
   (interactive)
-  (re-search-forward "^\\\\end{[^}]+}" nil t))
+  (re-search-forward "^\\\\end{[^}]+}.*\n" nil t))
 
 (defcustom tp-left-right-delimiter-pairs
   '(("(" . ")")
