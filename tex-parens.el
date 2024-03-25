@@ -232,8 +232,9 @@ defun-based commands."
   :type 'integer
   :group 'tex-parens)
 
-(defun tp--math-face-p ()
-  "Check if point is in a math face."
+(defun tp--math-face ()
+  "Returns the number of math face modifiers at point.
+0 means no math face."
   (let ((face (plist-get (text-properties-at (point))
                          'face)))
     (cond
