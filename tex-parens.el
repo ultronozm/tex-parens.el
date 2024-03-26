@@ -253,18 +253,31 @@ defun-based commands."
 (defun tp--math-face ()
   "Returns the number of math face modifiers at point.
 0 means no math face."
-  (let ((face (plist-get (text-properties-at (point))
+  (let ((math-faces '(tex-math font-latex-math-face))
+        (face (plist-get (text-properties-at (point))
                          'face)))
     (cond
-     ((memq face '(tex-math font-latex-math-face))
+     ((memq face math-faces)
       1)
      ((listp face)
       (let ((total 0))
         (dolist (f face)
-          (when (memq f '(tex-math font-latex-math-face))
+          (when (memq f math-faces)
             (setq total (1+ total))))
         total))
      (t 0))))
+
+(defun tp--comment ()
+  "Returns t if point is in a comment or verbatim environment."
+  (let ((comment-faces '(font-lock-comment-face
+                         font-latex-verbatim-face))
+        (face (plist-get (text-properties-at (point))
+                         'face)))
+    (or
+     (memq face comment-faces)
+     (and
+      (listp face)
+      (cl-some (lambda (f) (memq f comment-faces)) face)))))
 
 (defcustom tp-ignore-comments t
   "Whether to ignore comments when searching for delimiters."
@@ -279,26 +292,13 @@ then ignore comments; these are detected via
 `font-lock-comment-face'.  If M-STR is a double prime in math
 mode, then ignore it.  If M-STR is a dollar delimiter that does
 not demarcate math mode, then ignore it."
-  (or
-   (and
-    tp-ignore-comments
-    (let ((face (plist-get (text-properties-at (point))
-                           'face)))
-      (eq face 'font-lock-comment-face)))
-   (and
-    ;; ignore double prime in math-mode
-    (equal m-str "''")
-    (> (tp--math-face) 0))
-   (and
-    ;; ignore dollar delimiters that do not demarcate math mode
-    (member m-str '("$" "$$"))
-    (equal
-     (save-excursion
-       (goto-char (1- m-begin))
-       (tp--math-face))
-     (save-excursion
-       (goto-char m-end)
-       (tp--math-face))))))
+  (or (and tp-ignore-comments (tp--comment))
+      (and (equal m-str "''") (> (tp--math-face) 0))
+      (and (member m-str '("$" "$$"))
+           (equal (save-excursion (goto-char (1- m-begin))
+                                  (tp--math-face))
+                  (save-excursion (goto-char m-end)
+                                  (tp--math-face))))))
 
 (defun tp--search-forward (regexp bound)
   "Search forward for REGEXP up to BOUND."
