@@ -292,8 +292,12 @@ then ignore comments; these are detected via
 `font-lock-comment-face'.  If M-STR is a double prime in math
 mode, then ignore it.  If M-STR is a dollar delimiter that does
 not demarcate math mode, then ignore it."
-  (or (and tp-ignore-comments (tp--comment))
-      (and (equal m-str "''") (> (tp--math-face) 0))
+  (or (and tp-ignore-comments
+           (save-excursion (goto-char m-begin)
+                           (tp--comment)))
+      (and (equal m-str "''")
+           (save-excursion (goto-char m-begin)
+                           (> (tp--math-face) 0)))
       (and (member m-str '("$" "$$"))
            (equal (save-excursion (goto-char (1- m-begin))
                                   (tp--math-face))
