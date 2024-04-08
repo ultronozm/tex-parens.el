@@ -270,7 +270,8 @@ defun-based commands."
 (defun tp--comment ()
   "Returns t if point is in a comment or verbatim environment."
   (let ((comment-faces '(font-lock-comment-face
-                         font-latex-verbatim-face))
+                         ;; font-latex-verbatim-face
+                         ))
         (face (plist-get (text-properties-at (point))
                          'face)))
     (or
@@ -293,7 +294,7 @@ then ignore comments; these are detected via
 mode, then ignore it.  If M-STR is a dollar delimiter that does
 not demarcate math mode, then ignore it."
   (or (and tp-ignore-comments
-           (save-excursion (goto-char (1- m-end))
+           (save-excursion (goto-char m-begin)
                            (tp--comment)))
       (and (equal m-str "''")
            (save-excursion (goto-char m-begin)
