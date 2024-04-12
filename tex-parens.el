@@ -180,7 +180,7 @@ form delimiters which are visibly `left'/`opening' or
                                #'tp-down-list
                                #'tp-backward-down-list
                                #'pop-to-mark-command
-                               )))
+                               #'undo)))
   (when (boundp 'TeX-fold-auto-reveal)
     (setq TeX-fold-auto-reveal
           '(eval (preview-arrived-via (key-binding [left])
@@ -195,7 +195,8 @@ form delimiters which are visibly `left'/`opening' or
                                       #'tp-backward-up-list
                                       #'tp-forward-sexp
                                       #'tp-backward-sexp
-                                      #'pop-to-mark-command))))
+                                      #'pop-to-mark-command
+                                      #'undo))))
   (setq-local beginning-of-defun-function #'tp--beginning-of-defun)
   (setq-local transpose-sexps-default-function #'tp-transpose-sexps-default-function)
   (setq end-of-defun-function #'tp--end-of-defun)
