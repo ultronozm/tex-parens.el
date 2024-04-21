@@ -551,8 +551,8 @@ backward across N balanced expressions."
   "Move forward across one balanced expression (sexp).
 Helper function for `tp-forward-sexp'."
   (let ((delim-beg (save-excursion
-                     (tp--forward-delim)
-                     (match-beginning 0)))
+                     (when (tp--forward-delim)
+                       (match-beginning 0))))
         (vanilla
          (condition-case _
              (save-excursion
