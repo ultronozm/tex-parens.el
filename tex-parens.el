@@ -236,10 +236,11 @@ form delimiters which are visibly `left'/`opening' or
                 "{\\][^]]+\\[[a-zA-Z]+\\\\\\|"
                 (regexp-opt (mapcar #'reverse tp--delims))))
 
-  ;; Don't know why, but Emacs freezes with the following line
-  ;; uncommented.  For this reason, we have to go through the
-  ;; awkwardness of duplicating several functions near the bottom of
-  ;; this file.
+  ;; It would be natural to uncomment the following line, but I had
+  ;; problems with it at some point, perhaps related to the fact that
+  ;; other modes use the built-in forward-sexp in various ways.  This
+  ;; means that we need to define a few more boilerplate functions and
+  ;; bind a few more keys, but seems like the stable approach.
 
   ;; (setq-local forward-sexp-function #'tp-forward-sexp)
   )
@@ -719,13 +720,8 @@ Push a mark at the end of the contents of the pair."
       (tp--backward-delim)
       (delete-region (point) q))))
 
-;;; AWKWARDNESS BEGINS HERE
 
-;; it shouldn't be necessary to define any of the following (via
-;; copy/paste from lisp.el and simple.el) -- it should suffice to set
-;; forward-sexp-function to tp-forward-sexp -- but for some
-;; reason, Emacs freezes when I do so.  I haven't been able to debug
-;; why.  alas.
+;;; The following is adapted from lisp.el and simple.el
 
 (defun tp-mark-sexp (&optional arg allow-extend)
   "Set mark ARG sexps from point or move mark one sexp.
