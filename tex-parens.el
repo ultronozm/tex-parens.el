@@ -183,20 +183,20 @@ form delimiters which are visibly `left'/`opening' or
                                #'undo)))
   (when (boundp 'TeX-fold-auto-reveal)
     (setq TeX-fold-auto-reveal
-          '(eval (preview-arrived-via (key-binding [left])
-                                      (key-binding [right])
-                                      #'backward-char #'forward-char
-                                      #'mouse-set-point
-                                      #'tp-down-list
-                                      #'tp-backward-down-list
-                                      #'tp-forward-list
-                                      #'tp-backward-list
-                                      #'tp-up-list
-                                      #'tp-backward-up-list
-                                      #'tp-forward-sexp
-                                      #'tp-backward-sexp
-                                      #'pop-to-mark-command
-                                      #'undo))))
+          '(eval (TeX-fold-arrived-via (key-binding [left])
+                                       (key-binding [right])
+                                       #'backward-char #'forward-char
+                                       #'mouse-set-point
+                                       #'tp-down-list
+                                       #'tp-backward-down-list
+                                       #'tp-forward-list
+                                       #'tp-backward-list
+                                       #'tp-up-list
+                                       #'tp-backward-up-list
+                                       #'tp-forward-sexp
+                                       #'tp-backward-sexp
+                                       #'pop-to-mark-command
+                                       #'undo))))
   (setq-local beginning-of-defun-function #'tp--beginning-of-defun)
   (setq-local transpose-sexps-default-function #'tp-transpose-sexps-default-function)
   (setq end-of-defun-function #'tp--end-of-defun)
