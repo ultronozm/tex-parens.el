@@ -36,27 +36,25 @@ Download this repository, install using =M-x package-install-file= (or package-v
 (use-package tex-parens
   :bind
   (:map LaTeX-mode-map
-        ("C-M-f" . tp-forward-sexp)
-        ("C-M-b" . tp-backward-sexp)
-        ("C-M-n" . tp-forward-list)
-        ("C-M-p" . tp-backward-list)
-        ("C-M-u" . tp-backward-up-list)
-        ("M-u" . tp-up-list)
-        ("C-M-g" . tp-down-list)
-        ("M-_" . tp-delete-pair)
-        ("C-M-SPC" . tp-mark-sexp)
-        ("C-M-k" . tp-kill-sexp)
+        ("C-M-f" . tex-parens-forward-sexp)
+        ("C-M-b" . tex-parens-backward-sexp)
+        ("C-M-n" . tex-parens-forward-list)
+        ("C-M-p" . tex-parens-backward-list)
+        ("C-M-u" . tex-parens-backward-up-list)
+        ("M-u" . tex-parens-up-list)
+        ("C-M-g" . tex-parens-down-list)
+        ("M-_" . tex-parens-delete-pair)
+        ("C-M-SPC" . tex-parens-mark-sexp)
+        ("C-M-k" . tex-parens-kill-sexp)
         ("C-M-t" . transpose-sexps)
-        ("C-M-<backspace>" . tp-backward-kill-sexp)
-        ("M-+" . tp-raise-sexp))
+        ("C-M-<backspace>" . tex-parens-backward-kill-sexp)
+        ("M-+" . tex-parens-raise-sexp))
   :hook
-  (LaTeX-mode . tp-setup))
+  (LaTeX-mode . tex-parens-setup))
 #+end_src
 
 The precise use-package declaration that I use (with elpaca) may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]].
 
-Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tp-setup)= for the changes to take effect.
+Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tex-parens-setup)= for the changes to take effect.
 
-* Issues
-1. This isn't really an issue in the sense that it doesn't affect usage, but it shouldn't have been necessary to define the functions =tp-mark-sexp=, =tp-kill-sexp=, =tp-backward-kill-sexp=, =tp-raise-sexp= -- it should suffice to use the built-in functions =mark-sexp=, =kill-sexp=, =backward-kill-sexp=, =raise-sexp= with the local variable =forward-sexp-function= set to =#'tp-forward-sexp=.  Unfortunately, Emacs freezes when I attempt to do so, for reasons that I haven't been able to debug.
 
