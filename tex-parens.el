@@ -176,18 +176,30 @@ form delimiters which are visibly `left'/`opening' or
 
 (defun tex-parens-setup ()
   "Set up tex-parens.  Intended as a hook for `LaTeX-mode'."
-  (dolist (func '(tex-parens-down-list
-                  tex-parens-backward-down-list))
-    (add-to-list 'preview-auto-reveal-commands func))
-  (dolist (func '(tex-parens-down-list
-                  tex-parens-backward-down-list
-                  tex-parens-up-list
-                  tex-parens-backward-up-list
-                  tex-parens-forward-list
-                  tex-parens-backward-list
-                  tex-parens-forward-sexp
-                  tex-parens-backward-sexp))
-    (add-to-list 'TeX-fold-auto-reveal-commands func))
+  (setq
+   preview-auto-reveal
+   '(eval (preview-arrived-via (key-binding [left])
+                               (key-binding [right])
+                               #'backward-char #'forward-char
+                               #'tp-down-list
+                               #'tp-backward-down-list
+                               #'pop-to-mark-command
+                               #'undo)))
+  (when (boundp 'TeX-fold-auto-reveal)
+    (setq TeX-fold-auto-reveal
+          '(eval (TeX-fold-arrived-via (key-binding [left])
+                                       (key-binding [right])
+                                       #'backward-char #'forward-char
+                                       #'mouse-set-point
+                                       #'tp-down-list
+                                       #'tp-backward-down-list
+                                       #'tp-forward-list
+                                       #'tp-backward-list
+                                       #'tp-up-list
+                                       #'tp-backward-up-list
+                                       #'tp-forward-sexp
+                                       #'tp-backward-sexp
+                                       #'pop-to-mark-command))))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
   (setq-local transpose-sexps-default-function #'tex-parens-transpose-sexps-default-function)
   (setq end-of-defun-function #'tex-parens--end-of-defun)
@@ -195,7 +207,7 @@ form delimiters which are visibly `left'/`opening' or
   (setq tex-parens--pairs-swap
         (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens--pairs))
   (setq tex-parens--delims (append (mapcar #'car tex-parens--pairs)
-                           (mapcar #'cdr tex-parens--pairs)))
+                                   (mapcar #'cdr tex-parens--pairs)))
   (setq tex-parens--regexp
         (concat "\\\\begin{[^}]+}\\[[^]]+\\]"
                 "\\|"
