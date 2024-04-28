@@ -181,8 +181,8 @@ form delimiters which are visibly `left'/`opening' or
    '(eval (preview-arrived-via (key-binding [left])
                                (key-binding [right])
                                #'backward-char #'forward-char
-                               #'tp-down-list
-                               #'tp-backward-down-list
+                               #'tex-parens-down-list
+                               #'tex-parens-backward-down-list
                                #'pop-to-mark-command
                                #'undo)))
   (when (boundp 'TeX-fold-auto-reveal)
@@ -191,14 +191,14 @@ form delimiters which are visibly `left'/`opening' or
                                        (key-binding [right])
                                        #'backward-char #'forward-char
                                        #'mouse-set-point
-                                       #'tp-down-list
-                                       #'tp-backward-down-list
-                                       #'tp-forward-list
-                                       #'tp-backward-list
-                                       #'tp-up-list
-                                       #'tp-backward-up-list
-                                       #'tp-forward-sexp
-                                       #'tp-backward-sexp
+                                       #'tex-parens-down-list
+                                       #'tex-parens-backward-down-list
+                                       #'tex-parens-forward-list
+                                       #'tex-parens-backward-list
+                                       #'tex-parens-up-list
+                                       #'tex-parens-backward-up-list
+                                       #'tex-parens-forward-sexp
+                                       #'tex-parens-backward-sexp
                                        #'pop-to-mark-command))))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
   (setq-local transpose-sexps-default-function #'tex-parens-transpose-sexps-default-function)
