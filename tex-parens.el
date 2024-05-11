@@ -176,30 +176,18 @@ form delimiters which are visibly `left'/`opening' or
 
 (defun tex-parens-setup ()
   "Set up tex-parens.  Intended as a hook for `LaTeX-mode'."
-  (setq
-   preview-auto-reveal
-   '(eval (preview-arrived-via (key-binding [left])
-                               (key-binding [right])
-                               #'backward-char #'forward-char
-                               #'tex-parens-down-list
-                               #'tex-parens-backward-down-list
-                               #'pop-to-mark-command
-                               #'undo)))
-  (when (boundp 'TeX-fold-auto-reveal)
-    (setq TeX-fold-auto-reveal
-          '(eval (TeX-fold-arrived-via (key-binding [left])
-                                       (key-binding [right])
-                                       #'backward-char #'forward-char
-                                       #'mouse-set-point
-                                       #'tex-parens-down-list
-                                       #'tex-parens-backward-down-list
-                                       #'tex-parens-forward-list
-                                       #'tex-parens-backward-list
-                                       #'tex-parens-up-list
-                                       #'tex-parens-backward-up-list
-                                       #'tex-parens-forward-sexp
-                                       #'tex-parens-backward-sexp
-                                       #'pop-to-mark-command))))
+  (dolist (func '(tex-parens-down-list
+                  tex-parens-backward-down-list))
+    (add-to-list 'preview-auto-reveal-commands func))
+  (dolist (func '(tex-parens-down-list
+                  tex-parens-backward-down-list
+                  tex-parens-up-list
+                  tex-parens-backward-up-list
+                  tex-parens-forward-list
+                  tex-parens-backward-list
+                  tex-parens-forward-sexp
+                  tex-parens-backward-sexp))
+    (add-to-list 'TeX-fold-auto-reveal-commands func))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
   (setq-local transpose-sexps-default-function #'tex-parens-transpose-sexps-default-function)
   (setq end-of-defun-function #'tex-parens--end-of-defun)
