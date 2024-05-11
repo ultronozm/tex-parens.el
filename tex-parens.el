@@ -232,9 +232,9 @@ form delimiters which are visibly `left'/`opening' or
   (setq tex-parens--regexp-reverse
         (concat "\\][^[]+\\[}[^{]+{nigeb\\\\"
                 "\\|"
-                "}[^{]+{nigeb\\\\"
+                "}[^}]+{nigeb\\\\"
                 "\\|"
-                "}[^{]+{dne\\\\\\|"
+                "}[^}]+{dne\\\\\\|"
                 "{[a-zA-Z]+\\\\\\|"
                 "{\\][^]]+\\[[a-zA-Z]+\\\\\\|"
                 (regexp-opt (mapcar #'reverse tex-parens--delims))))
