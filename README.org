@@ -36,6 +36,28 @@ Download this repository, install using =M-x package-install-file= (or package-v
 (use-package tex-parens
   :bind
   (:map LaTeX-mode-map
+        ([remap forward-sexp] . tex-parens-forward-sexp)
+        ([remap backward-sexp] . tex-parens-backward-sexp)
+        ([remap forward-list] . tex-parens-forward-list)
+        ([remap backward-list] . tex-parens-backward-list)
+        ([remap backward-up-list] . tex-parens-backward-up-list)
+        ([remap up-list] . tex-parens-up-list)
+        ([remap down-list] . tex-parens-down-list)
+        ([remap delete-pair] . tex-parens-delete-pair)
+        ([remap mark-sexp] . tex-parens-mark-sexp)
+        ([remap kill-sexp] . tex-parens-kill-sexp)
+        ([remap transpose-sexps] . transpose-sexps)
+        ([remap backward-kill-sexp] . tex-parens-backward-kill-sexp)
+        ([remap raise-sexp] . tex-parens-raise-sexp))
+  :hook
+  (LaTeX-mode . tex-parens-setup))
+#+end_src
+With this setup, whatever binds you generally use for the indicated list commands will be forwarded to =tex-parens= in =LaTeX-mode=.  If you want to specify the keys more directly, use instead something like the following:
+
+#+begin_src elisp
+(use-package tex-parens
+  :bind
+  (:map LaTeX-mode-map
         ("C-M-f" . tex-parens-forward-sexp)
         ("C-M-b" . tex-parens-backward-sexp)
         ("C-M-n" . tex-parens-forward-list)
@@ -53,7 +75,7 @@ Download this repository, install using =M-x package-install-file= (or package-v
   (LaTeX-mode . tex-parens-setup))
 #+end_src
 
-The precise use-package declaration that I use (with elpaca) may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]].
+The precise use-package declaration that I use may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]] (elpaca branch).
 
 Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tex-parens-setup)= for the changes to take effect.
 
