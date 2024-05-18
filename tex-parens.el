@@ -29,31 +29,25 @@
 ;; and mathematical parenthesis-like constructions (e.g.,
 ;; langle/rangle), together with their tex modifiers (e.g.,
 ;; left/right, bigl/bigr).  See README.org for more details.
-
-;; There are many packages that aim to provide such features for
-;; general modes, but I was unable to find one that provides the
-;; desired functionality for the special case of tex buffers.
-
+;;
 ;; Sample configuration:
 ;;
 ;; (use-package tex-parens
-;;   :ensure (:host github :repo "ultronozm/tex-parens.el"
-;;                  :depth nil)
 ;;   :bind
 ;;   (:map LaTeX-mode-map
-;;         ("C-M-f" . tex-parens-forward-sexp)
-;;         ("C-M-b" . tex-parens-backward-sexp)
-;;         ("C-M-n" . tex-parens-forward-list)
-;;         ("C-M-p" . tex-parens-backward-list)
-;;         ("C-M-u" . tex-parens-backward-up-list)
-;;         ("M-u" . tex-parens-up-list)
-;;         ("C-M-g" . tex-parens-down-list)
-;;         ("M-_" . tex-parens-delete-pair)
-;;         ("C-M-SPC" . tex-parens-mark-sexp)
-;;         ("C-M-k" . tex-parens-kill-sexp)
-;;         ("C-M-t" . transpose-sexps)
-;;         ("C-M-<backspace>" . tex-parens-backward-kill-sexp)
-;;         ("M-+" . tex-parens-raise-sexp))
+;;         ([remap forward-sexp] . tex-parens-forward-sexp)
+;;         ([remap backward-sexp] . tex-parens-backward-sexp)
+;;         ([remap forward-list] . tex-parens-forward-list)
+;;         ([remap backward-list] . tex-parens-backward-list)
+;;         ([remap backward-up-list] . tex-parens-backward-up-list)
+;;         ([remap up-list] . tex-parens-up-list)
+;;         ([remap down-list] . tex-parens-down-list)
+;;         ([remap delete-pair] . tex-parens-delete-pair)
+;;         ([remap mark-sexp] . tex-parens-mark-sexp)
+;;         ([remap kill-sexp] . tex-parens-kill-sexp)
+;;         ([remap transpose-sexps] . transpose-sexps)
+;;         ([remap backward-kill-sexp] . tex-parens-backward-kill-sexp)
+;;         ([remap raise-sexp] . tex-parens-raise-sexp))
 ;;   :hook
 ;;   (LaTeX-mode . tex-parens-setup))
 
