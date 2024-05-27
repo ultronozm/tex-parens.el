@@ -79,4 +79,5 @@ The precise use-package declaration that I use may be found in [[https://github.
 
 Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tex-parens-setup)= for the changes to take effect.
 
-
+* Variants
+This package contains the additional functions =tex-parens-burp-left=, =tex-parens-burp-right=, =tex-parens-mark-inner=, =tex-parens-beginning-of-list= and =tex-parens-end-of-list=, which are defined in terms of the sexp/list primitives; see the =C-h f= documentation for details.

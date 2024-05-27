@@ -981,5 +981,34 @@ Otherwise, call `self-insert-command'."
    (t
     (call-interactively #'self-insert-command))))
 
+;;; Miscellaneous
+
+(defun tex-parens-mark-inner ()
+  "Mark the innermost balanced group around point."
+  (interactive)
+  (tex-parens-backward-up-list)
+  (tex-parens-down-list)
+  (set-mark (point))
+  (tex-parens-up-list)
+  (tex-parens-backward-down-list))
+
+(defun tex-parens-beginning-of-list ()
+  "Move to the beginning of the current balanced group."
+  (interactive)
+  (let ((last (point)))
+    (tex-parens-backward-sexp)
+    (while (< (point) last)
+      (setq last (point))
+      (tex-parens-backward-sexp))))
+
+(defun tex-parens-end-of-list ()
+  "Move to the end of the current balanced group."
+  (interactive)
+  (let ((last (point)))
+    (tex-parens-forward-sexp)
+    (while (> (point) last)
+      (setq last (point))
+      (tex-parens-forward-sexp))))
+
 (provide 'tex-parens)
 ;;; tex-parens.el ends here
