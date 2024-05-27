@@ -53,7 +53,6 @@
 
 ;;; Code:
 
-(require 'cl-lib)
 (require 'tex-fold)
 (require 'preview)
 
@@ -119,12 +118,13 @@ This is comfortably larger than `\\biggl\\langle' and
 
 (defun tex-parens--reduce-append (func list1 list2)
   "List consisting of FUNC applied to pairs from LIST1 and LIST2."
-  (cl-reduce #'append
-             (mapcar (lambda (item1)
-                       (mapcar (lambda (item2)
-                                 (funcall func item1 item2))
-                               list2))
-                     list1)))
+  (seq-reduce #'append
+              (mapcar (lambda (item1)
+                        (mapcar (lambda (item2)
+                                  (funcall func item1 item2))
+                                list2))
+                      list1)
+              nil))
 
 (defun tex-parens--generate-pairs ()
   "Generate list of left/right pairs of delimiters.
@@ -266,7 +266,7 @@ defun-based commands."
      (memq face comment-faces)
      (and
       (listp face)
-      (cl-some (lambda (f) (memq f comment-faces)) face)))))
+      (seq-some (lambda (f) (memq f comment-faces)) face)))))
 
 (defcustom tex-parens-ignore-comments t
   "Whether to ignore comments when searching for delimiters."
