@@ -64,13 +64,11 @@
 (defun tex-parens--beginning-of-defun ()
   "Move to the beginning of the current defun.
 Here `defun' means top-level environment."
-  (interactive)
   (re-search-backward "^\\\\begin{[^}]+}" nil t))
 
 (defun tex-parens--end-of-defun ()
   "Move to the end of the current defun.
 Here `defun' means top-level environment."
-  (interactive)
   (re-search-forward "^\\\\end{[^}]+}.*\n" nil t))
 
 (defcustom tex-parens-left-right-delimiter-pairs
