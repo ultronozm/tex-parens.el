@@ -156,15 +156,22 @@ form delimiters which are visibly `left'/`opening' or
               (concat (cdr um) p)))
       ambiguous-parens unambiguous-modifiers))))
 
+;; The significance of the "+" regexps is that for some (but not all)
+;; purposes, it is convenient to regard the optional arguments
+;; following a \\begin{...} delimiter as being part of that delimiter.
+;; This is so for slurp/barf commands, but not for other navigation
+;; and editing commands, which one might wish to apply directly to the
+;; brackets surrounding the optional argument.
 (defvar tex-parens--pairs nil)
 (defvar tex-parens--pairs-swap nil)
 (defvar tex-parens--delims nil)
 (defvar tex-parens--regexp nil)
+(defvar tex-parens--regexp+ nil)
 (defvar tex-parens--regexp-open nil)
+(defvar tex-parens--regexp-open+ nil)
 (defvar tex-parens--regexp-close nil)
 (defvar tex-parens--regexp-reverse nil)
-
-(defvar preview-auto-reveal)
+(defvar tex-parens--regexp-reverse+ nil)
 
 (defun tex-parens-setup ()
   "Set up tex-parens.  Intended as a hook for `LaTeX-mode'."
@@ -181,43 +188,49 @@ form delimiters which are visibly `left'/`opening' or
                   tex-parens-backward-sexp))
     (add-to-list 'TeX-fold-auto-reveal-commands func))
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
-  (setq-local transpose-sexps-default-function #'tex-parens-transpose-sexps-default-function)
+  (setq-local transpose-sexps-default-function
+              #'tex-parens-transpose-sexps-default-function)
   (setq end-of-defun-function #'tex-parens--end-of-defun)
   (setq tex-parens--pairs (tex-parens--generate-pairs))
   (setq tex-parens--pairs-swap
         (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens--pairs))
   (setq tex-parens--delims (append (mapcar #'car tex-parens--pairs)
                                    (mapcar #'cdr tex-parens--pairs)))
+
   (setq tex-parens--regexp
-        (concat "\\\\begin{[^}]+}\\[[^]]+\\]"
-                "\\|"
-                "\\\\begin{[^}]+}"
-                "\\|"
-                "\\\\end{[^}]+}"
-                "\\|"
-                "\\\\[a-zA-Z]+\\[[^]]+\\]{"
-                "\\|"
-                "\\\\[a-zA-Z]+{"
-                "\\|"
-                (regexp-opt tex-parens--delims)))
+        (concat
+         ;; "\\\\begin{[^}]+}\\[[^]]+\\]" "\\|"
+         "\\\\begin{[^}]+}" "\\|"
+         "\\\\end{[^}]+}" "\\|"
+         "\\\\[a-zA-Z]+\\[[^]]+\\]{" "\\|"
+         "\\\\[a-zA-Z]+{" "\\|"
+         (regexp-opt tex-parens--delims)))
+  (setq tex-parens--regexp+
+        (concat
+         "\\\\begin{[^}]+}\\[[^]]+\\]" "\\|"
+         tex-parens--regexp))
   (setq tex-parens--regexp-open
         (concat (regexp-opt (mapcar #'car tex-parens--pairs))
-                "\\|\\\\begin{[^}]+}\\[[^]]+\\]"
                 "\\|\\\\begin{[^}]+}"
                 "\\|\\\\[a-zA-Z]+\\[[^]]+\\]{"
                 "\\|\\\\[a-zA-Z]+{"))
+  (setq tex-parens--regexp-open+
+        (concat
+         "\\|\\\\begin{[^}]+}\\[[^]]+\\]"
+         tex-parens--regexp-open))
   (setq tex-parens--regexp-close
         (concat (regexp-opt (mapcar #'cdr tex-parens--pairs))
                 "\\|\\\\end{[^}]+}"))
   (setq tex-parens--regexp-reverse
-        (concat "\\][^[]+\\[}[^{]+{nigeb\\\\"
-                "\\|"
-                "}[^}]+{nigeb\\\\"
-                "\\|"
-                "}[^}]+{dne\\\\\\|"
-                "{[a-zA-Z]+\\\\\\|"
-                "{\\][^]]+\\[[a-zA-Z]+\\\\\\|"
-                (regexp-opt (mapcar #'reverse tex-parens--delims))))
+        (concat
+         "}[^}]+{nigeb\\\\\\|"
+         "}[^}]+{dne\\\\\\|"
+         "{[a-zA-Z]+\\\\\\|"
+         "{\\][^]]+\\[[a-zA-Z]+\\\\\\|"
+         (regexp-opt (mapcar #'reverse tex-parens--delims))))
+  (setq tex-parens--regexp-reverse+
+        (concat "\\][^[]+\\[}[^{]+{nigeb\\\\\\|"
+                tex-parens--regexp-reverse))
 
   ;; It would be natural to uncomment the following line, but I had
   ;; problems with it at some point, perhaps related to the fact that
@@ -361,7 +374,8 @@ Return the delimiter found, or nil if none is found."
   "Search for the previous delimiter up to BOUND.
 Return the delimiter found, or nil if none is found."
   (unless bound (setq bound (tex-parens--backward-bound)))
-  (tex-parens--search-backward tex-parens--regexp tex-parens--regexp-reverse bound))
+  (tex-parens--search-backward
+   tex-parens--regexp tex-parens--regexp-reverse bound))
 
 (defun tex-parens--close-of-open (delim)
   "Check if DELIM is opening, return the corresponding closing.
@@ -369,16 +383,17 @@ If DELIM is an opening delimiter, return the corresponding closing
 delimiter.  Otherwise, return nil."
   (or
    (cdr (assoc delim tex-parens--pairs))
-   (and (stringp delim)
-        (or
-         (and (or
-               (string-match "\\\\begin{\\([^}]+\\)}\\[[^]]+\\]" delim)
-               (string-match "\\\\begin{\\([^}]+\\)}" delim))
-              (let ((type (match-string 1 delim)))
-                (format "\\end{%s}" type)))
-         (unless (string-match "\\\\end{\\([^}]+\\)}" delim)
-           (and (string-match "\\\\[a-zA-Z]+\\[[^]]+\\]{\\|\\\\[a-zA-Z]+{" delim)
-                "}"))))))
+   (and
+    (stringp delim)
+    (or
+     (and (or
+           (string-match "\\\\begin{\\([^}]+\\)}\\[[^]]+\\]" delim)
+           (string-match "\\\\begin{\\([^}]+\\)}" delim))
+          (let ((type (match-string 1 delim)))
+            (format "\\end{%s}" type)))
+     (unless (string-match "\\\\end{\\([^}]+\\)}" delim)
+       (and (string-match "\\\\[a-zA-Z]+\\[[^]]+\\]{\\|\\\\[a-zA-Z]+{" delim)
+            "}"))))))
 
 (defun tex-parens--open-of-close (delim)
   "Check if DELIM is closing, return the corresponding opening.
@@ -464,7 +479,8 @@ Search up to BOUND."
           (push delim stack)
         (if stack
             (progn
-              (tex-parens--check-match delim (tex-parens--open-of-close delim) (car stack))
+              (tex-parens--check-match delim (tex-parens--open-of-close delim)
+                                       (car stack))
               (pop stack)
               (unless stack
                 (setq success t)))
@@ -490,7 +506,8 @@ Search up to BOUND."
           (push delim stack)
         (if stack
             (progn
-              (tex-parens--check-match delim (tex-parens--close-of-open delim) (car stack))
+              (tex-parens--check-match delim (tex-parens--close-of-open delim)
+                                       (car stack))
               (pop stack)
               (unless stack
                 (setq success t)))
@@ -605,7 +622,8 @@ Search up to BOUND."
           (push delim stack)
         (if stack
             (progn
-              (tex-parens--check-match delim (tex-parens--open-of-close delim) (car stack))
+              (tex-parens--check-match delim (tex-parens--open-of-close delim)
+                                       (car stack))
               (pop stack))
           (setq success t)))
       (setq delim (and (not success) (tex-parens--forward-delim bound))))
@@ -626,7 +644,8 @@ Search up to BOUND."
           (push delim stack)
         (if stack
             (progn
-              (tex-parens--check-match delim (tex-parens--close-of-open delim) (car stack))
+              (tex-parens--check-match delim (tex-parens--close-of-open delim)
+                                       (car stack))
               (pop stack))
           (setq success t)))
       (setq delim (and (not success) (tex-parens--backward-delim bound))))
@@ -725,33 +744,33 @@ can change the direction by \\[exchange-point-and-mark].
 This command assumes point is not in a string or comment."
   (interactive "P\np")
   (cond ((and allow-extend
-	             (or (and (eq last-command this-command) (mark t))
-		                (and transient-mark-mode mark-active)))
-	        (setq arg (if arg (prefix-numeric-value arg)
-		                   (if (< (mark) (point)) -1 1)))
-	        (set-mark
-	         (save-excursion
-	           (goto-char (mark))
+              (or (and (eq last-command this-command) (mark t))
+                  (and transient-mark-mode mark-active)))
+         (setq arg (if arg (prefix-numeric-value arg)
+                     (if (< (mark) (point)) -1 1)))
+         (set-mark
+          (save-excursion
+            (goto-char (mark))
             (condition-case error
-	               (tex-parens-forward-sexp arg)
+                (tex-parens-forward-sexp arg)
               (scan-error
                (user-error (if (equal (cadr error)
                                       "Containing expression ends prematurely")
                                "No more sexp to select"
                              (cadr error)))))
-	           (point))))
-	       (t
-	        (push-mark
-	         (save-excursion
+            (point))))
+        (t
+         (push-mark
+          (save-excursion
             (condition-case error
-	               (tex-parens-forward-sexp (prefix-numeric-value arg))
+                (tex-parens-forward-sexp (prefix-numeric-value arg))
               (scan-error
                (user-error (if (equal (cadr error)
                                       "Containing expression ends prematurely")
                                "No sexp to select"
                              (cadr error)))))
-	           (point))
-	         nil t))))
+            (point))
+          nil t))))
 
 (defun tex-parens-kill-sexp (&optional arg interactive)
   "Kill the sexp (balanced expression) following point.
@@ -791,28 +810,29 @@ ARG is as in the docstring for `transpose-sexps'."
   ;; putting us back to where we want to be, since forward-sexp-function
   ;; might do funny things like infix-precedence.
   (if (if (> arg 0)
-	         (looking-at "\\sw\\|\\s_")
-	       (and (not (bobp))
-	            (save-excursion
+          (looking-at "\\sw\\|\\s_")
+        (and (not (bobp))
+             (save-excursion
                (forward-char -1)
                (looking-at "\\sw\\|\\s_"))))
       ;; Jumping over a symbol.  We might be inside it, mind you.
       (progn (funcall (if (> arg 0)
-			                       #'skip-syntax-backward #'skip-syntax-forward)
-		                    "w_")
-	            (cons (save-excursion (tex-parens-forward-sexp arg) (point)) (point)))
+                          #'skip-syntax-backward #'skip-syntax-forward)
+                      "w_")
+             (cons (save-excursion (tex-parens-forward-sexp arg) (point))
+                   (point)))
     ;; Otherwise, we're between sexps.  Take a step back before jumping
     ;; to make sure we'll obey the same precedence no matter which
     ;; direction we're going.
     (funcall (if (> arg 0) #'skip-syntax-backward #'skip-syntax-forward)
              " .")
     (cons (save-excursion (tex-parens-forward-sexp arg) (point))
-	         (progn (while (or (forward-comment (if (> arg 0) 1 -1))
-			                         (not (zerop (funcall (if (> arg 0)
-						                                               #'skip-syntax-forward
-						                                             #'skip-syntax-backward)
-						                                           ".")))))
-		               (point)))))
+          (progn (while (or (forward-comment (if (> arg 0) 1 -1))
+                            (not (zerop (funcall (if (> arg 0)
+                                                     #'skip-syntax-forward
+                                                   #'skip-syntax-backward)
+                                                 ".")))))
+                 (point)))))
 
 (defun tex-parens-raise-sexp (&optional n)
   "Raise N sexps one level higher up the tree.
@@ -850,7 +870,7 @@ and point is before (zot), \\[raise-sexp] will give you
 (defun tex-parens--slurp-left ()
   "Slurp the next sexp into the current one, to the left."
   (when-let ((pos (point))
-             (match (when (looking-at tex-parens--regexp) (match-string 0))))
+             (match (when (looking-at tex-parens--regexp+) (match-string 0))))
     (delete-region (point) (+ (point) (length match)))
     (condition-case nil
         (progn
@@ -873,7 +893,7 @@ and point is before (zot), \\[raise-sexp] will give you
                (with-temp-buffer
                  (insert reversed-text)
                  (goto-char (point-min))
-                 (when (looking-at tex-parens--regexp-reverse)
+                 (when (looking-at tex-parens--regexp-reverse+)
                    (match-string 0))))
               (match (reverse reverse-match)))
     (backward-char (length match))
@@ -904,12 +924,16 @@ Otherwise, call `self-insert-command'."
   (interactive)
   (cond
    ((and
-     (not (looking-back tex-parens--regexp-open (max (point-min) (- (point) tex-parens-max-delim-length))))
-     (looking-back tex-parens--regexp-close (max (point-min) (- (point) tex-parens-max-delim-length))))
+     (not (looking-back tex-parens--regexp-open+
+                        (max (point-min) (- (point)
+                                            tex-parens-max-delim-length))))
+     (looking-back tex-parens--regexp-close
+                   (max (point-min) (- (point)
+                                       tex-parens-max-delim-length))))
     (tex-parens--barf-left))
    ((and
      (not (looking-at tex-parens--regexp-close))
-     (looking-at tex-parens--regexp-open))
+     (looking-at tex-parens--regexp-open+))
     (tex-parens--slurp-left))
    (t
     (call-interactively #'self-insert-command))))
@@ -917,7 +941,7 @@ Otherwise, call `self-insert-command'."
 (defun tex-parens--barf-right ()
   "Barf the next sexp out of the current one, to the right."
   (let ((pos (point))
-        (match (when (looking-at tex-parens--regexp) (match-string 0))))
+        (match (when (looking-at tex-parens--regexp+) (match-string 0))))
     (forward-char (length match))
     (progn
       (tex-parens-forward-sexp)
@@ -948,7 +972,7 @@ Otherwise, call `self-insert-command'."
                (with-temp-buffer
                  (insert reversed-text)
                  (goto-char (point-min))
-                 (when (looking-at tex-parens--regexp-reverse)
+                 (when (looking-at tex-parens--regexp-reverse+)
                    (match-string 0))))
               (match (reverse reverse-match)))
     (condition-case nil
@@ -971,12 +995,16 @@ Otherwise, call `self-insert-command'."
   (interactive)
   (cond
    ((and
-     (not (looking-back tex-parens--regexp-open (max (point-min) (- (point) tex-parens-max-delim-length))))
-     (looking-back tex-parens--regexp-close (max (point-min) (- (point) tex-parens-max-delim-length))))
+     (not (looking-back tex-parens--regexp-open+
+                        (max (point-min) (- (point)
+                                            tex-parens-max-delim-length))))
+     (looking-back tex-parens--regexp-close
+                   (max (point-min) (- (point)
+                                       tex-parens-max-delim-length))))
     (tex-parens--slurp-right))
    ((and
      (not (looking-at tex-parens--regexp-close))
-     (looking-at tex-parens--regexp-open))
+     (looking-at tex-parens--regexp-open+))
     (tex-parens--barf-right))
    (t
     (call-interactively #'self-insert-command))))
