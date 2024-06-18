@@ -1,6 +1,6 @@
 ;;; tex-parens.el --- like lisp.el but for tex  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Paul D. Nelson
+;; Copyright (C) 2024  Free Software Foundation, Inc.
 
 ;; Author: Paul D. Nelson <nelson.paul.david@gmail.com>
 ;; Version: 0.1
