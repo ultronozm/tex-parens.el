@@ -84,7 +84,7 @@ Here `defun' means top-level environment."
 
 (defcustom tex-parens-solo-delimiters
   '("|" "\\|" "\\vert" "\\Vert")
-  "Delimiters that do come in pairs."
+  "Delimiters that do not come in pairs."
   :type '(repeat string))
 
 (defcustom tex-parens-left-right-modifier-pairs
@@ -286,34 +286,35 @@ defun-based commands."
   :type 'boolean
   :group 'tex-parens)
 
-(defun tex-parens--ignore (m-str m-begin m-end)
-  "Check if M-STR should be ignored.
-M-STR is the string matched by the search, while M-BEGIN and
-M-END delimit the match.  If `tex-parens-ignore-comments' is non-nil,
-then ignore comments; these are detected via
-`font-lock-comment-face'.  If M-STR is a double prime in math
-mode, then ignore it.  If M-STR is a dollar delimiter that does
-not demarcate math mode, then ignore it."
+(defun tex-parens--ignore (str begin end)
+  "Check if STR should be ignored.
+STR is the string matched by the search, while BEGIN and END delimit the
+match.  If `tex-parens-ignore-comments' is non-nil, then ignore
+comments; these are detected via `font-lock-comment-face'.  If STR is a
+double prime in math mode, then ignore it.  If STR is a dollar delimiter
+that does not demarcate math mode, then ignore it."
   (or (and tex-parens-ignore-comments
-           (save-excursion (goto-char m-begin)
+           (save-excursion (goto-char begin)
                            (tex-parens--comment)))
-      (and (equal m-str "''")
-           (save-excursion (goto-char m-begin)
+      (and (equal str "''")
+           (save-excursion (goto-char begin)
                            (> (tex-parens--math-face) 0)))
-      (and (member m-str '("$" "$$"))
-           (equal (save-excursion (goto-char (1- m-begin))
+      (and (member str '("$" "$$"))
+           (equal (save-excursion (goto-char (1- begin))
                                   (tex-parens--math-face))
-                  (save-excursion (goto-char m-end)
+                  (save-excursion (goto-char end)
                                   (tex-parens--math-face))))))
 
 (defun tex-parens--search-forward (regexp bound)
-  "Search forward for REGEXP up to BOUND."
+  "Search forward for REGEXP up to BOUND.
+Ignore matches that should be ignored.  Return the first match string
+found, or nil if none is found."
   (let (success done)
     (while (not done)
       (if (re-search-forward regexp bound t)
           (when (not (tex-parens--ignore (match-string 0)
-                                 (match-beginning 0)
-                                 (match-end 0)))
+                                         (match-beginning 0)
+                                         (match-end 0)))
             (setq done t
                   success t))
         (setq done t)))
@@ -353,16 +354,14 @@ Assumes that REGEXP-REVERSE is the reverse of REGEXP."
 (defun tex-parens--forward-bound ()
   "Return the default bound for forward search."
   (save-excursion
-    (min
-     (point-max)
-     (+ (point) tex-parens-search-limit))))
+    (min (point-max)
+         (+ (point) tex-parens-search-limit))))
 
 (defun tex-parens--backward-bound ()
   "Return the default bound for backward search."
   (save-excursion
-    (max
-     (point-min)
-     (- (point) tex-parens-search-limit))))
+    (max (point-min)
+         (- (point) tex-parens-search-limit))))
 
 (defun tex-parens--forward-delim (&optional bound)
   "Search for the next delimiter up to BOUND.
