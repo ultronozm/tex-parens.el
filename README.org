@@ -31,29 +31,17 @@ This package provides analogous commands adapted for tex buffers, with the class
 There is some support in this direction in the built-in [[https://www.gnu.org/software/emacs/manual/html_node/emacs/TeX-Mode.html][tex-mode]], in [[https://www.gnu.org/software/auctex/][AUCTeX]] and in [[https://github.com/Malabarba/latex-extra][latex-extra]].  There are many packages, such as [[https://paredit.org/][paredit]] and [[https://github.com/abo-abo/lispy][lispy]], that add further useful commands and bindings to lisp modes, and many other packages, such as [[https://github.com/Fuco1/smartparens][smartparens,]] [[https://github.com/AmaiKinono/puni][puni]] and [[https://github.com/purcell/paredit-everywhere][paredit-everywhere,]] that aim to give consistent parenthesis-based commands across all modes.  There's also the [[https://github.com/iyefrat/evil-tex][evil-tex]] package for those that prefer a modal setup.  I was unable to get these packages to behave in the desired manner.  Smartparens comes close, but doesn't seem to support arbitrary begin/end pairs, and has some issues when one delimiter is a prefix of another (https://github.com/Fuco1/smartparens/issues/1193).  This package should work out-of-the-box and behave in tex buffers just like stock Emacs does in lisp buffers.
 
 * Configuration
-Download this repository, install using =M-x package-install-file= (or package-vc-install, straight, elpaca, ...), and add something like the following to your [[https://www.emacswiki.org/emacs/InitFile][init file]], adjusting the binds according to preference (and replacing =LaTeX-mode= with =latex-mode= or =tex-mode= or =plain-tex-mode=, whichever is appropriate, if you don't use AUCTeX):
+This package is available via GNU ELPA, so you can install it using =package-install= or =list-packages=.  You can activate it via =M-x tex-parens-mode=, which remaps binds for the commands listed above to their =tex-parens-*= counterparts.
+
+To activate automatically, add the following lines to your config (the first hook applies if use the built-in [[https://www.gnu.org/software/emacs/manual/html_node/emacs/TeX-Mode.html][tex-mode]], the second if you use [[https://www.gnu.org/software/auctex/][AUCTeX]]):
 #+begin_src elisp
 (use-package tex-parens
-  :bind
-  (:map LaTeX-mode-map
-        ([remap forward-sexp] . tex-parens-forward-sexp)
-        ([remap backward-sexp] . tex-parens-backward-sexp)
-        ([remap forward-list] . tex-parens-forward-list)
-        ([remap backward-list] . tex-parens-backward-list)
-        ([remap backward-up-list] . tex-parens-backward-up-list)
-        ([remap up-list] . tex-parens-up-list)
-        ([remap down-list] . tex-parens-down-list)
-        ([remap delete-pair] . tex-parens-delete-pair)
-        ([remap mark-sexp] . tex-parens-mark-sexp)
-        ([remap kill-sexp] . tex-parens-kill-sexp)
-        ([remap transpose-sexps] . transpose-sexps)
-        ([remap backward-kill-sexp] . tex-parens-backward-kill-sexp)
-        ([remap raise-sexp] . tex-parens-raise-sexp))
   :hook
-  (LaTeX-mode . tex-parens-setup))
+  (tex-mode . tex-parens-mode)
+  (TeX-mode . tex-parens-mode))
 #+end_src
-With this setup, whatever binds you generally use for the indicated list commands will be forwarded to =tex-parens= in =LaTeX-mode=.  If you want to specify the keys more directly, use instead something like the following:
 
+For finer control over how keys are bound, you can avoid =tex-parens-mode= and instead use something like the following:
 #+begin_src elisp
 (use-package tex-parens
   :bind
@@ -72,12 +60,13 @@ With this setup, whatever binds you generally use for the indicated list command
         ("C-M-<backspace>" . tex-parens-backward-kill-sexp)
         ("M-+" . tex-parens-raise-sexp))
   :hook
-  (LaTeX-mode . tex-parens-setup))
+  (tex-mode . tex-parens-setup)
+  (TeX-mode . tex-parens-setup))
 #+end_src
 
 The precise use-package declaration that I use may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]] (elpaca branch).
 
-Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file or =M-: (tex-parens-setup)= for the changes to take effect.
+Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file, reset the minor mode, or do =M-: (tex-parens-setup)= for the changes to take effect.
 
 * Variants
 This package contains the additional functions =tex-parens-burp-left=, =tex-parens-burp-right=, =tex-parens-mark-inner=, =tex-parens-beginning-of-list= and =tex-parens-end-of-list=, which are defined in terms of the sexp/list primitives; see the =C-h f= documentation for details.

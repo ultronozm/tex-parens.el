@@ -30,26 +30,13 @@
 ;; langle/rangle), together with their tex modifiers (e.g.,
 ;; left/right, bigl/bigr).  See README.org for more details.
 ;;
-;; Sample configuration:
+;; You can activate it via `M-x tex-parens-mode'.  To activate
+;; automatically, add the following to your init file:
 ;;
 ;; (use-package tex-parens
-;;   :bind
-;;   (:map LaTeX-mode-map
-;;         ([remap forward-sexp] . tex-parens-forward-sexp)
-;;         ([remap backward-sexp] . tex-parens-backward-sexp)
-;;         ([remap forward-list] . tex-parens-forward-list)
-;;         ([remap backward-list] . tex-parens-backward-list)
-;;         ([remap backward-up-list] . tex-parens-backward-up-list)
-;;         ([remap up-list] . tex-parens-up-list)
-;;         ([remap down-list] . tex-parens-down-list)
-;;         ([remap delete-pair] . tex-parens-delete-pair)
-;;         ([remap mark-sexp] . tex-parens-mark-sexp)
-;;         ([remap kill-sexp] . tex-parens-kill-sexp)
-;;         ([remap transpose-sexps] . transpose-sexps)
-;;         ([remap backward-kill-sexp] . tex-parens-backward-kill-sexp)
-;;         ([remap raise-sexp] . tex-parens-raise-sexp))
 ;;   :hook
-;;   (LaTeX-mode . tex-parens-setup))
+;;   (tex-mode . tex-parens-mode)
+;;   (TeX-mode . tex-parens-mode))
 
 ;;; Code:
 
@@ -173,6 +160,10 @@ form delimiters which are visibly `left'/`opening' or
 (defvar tex-parens--regexp-reverse nil)
 (defvar tex-parens--regexp-reverse+ nil)
 
+(defvar tex-parens--saved-beginning-of-defun-function nil)
+(defvar tex-parens--saved-transpose-sexps-function nil)
+(defvar tex-parens--saved-end-of-defun-function nil)
+
 (defun tex-parens-setup ()
   "Set up tex-parens.  Intended as a hook for `LaTeX-mode'."
   (dolist (func '(tex-parens-down-list
@@ -187,10 +178,16 @@ form delimiters which are visibly `left'/`opening' or
                   tex-parens-forward-sexp
                   tex-parens-backward-sexp))
     (add-to-list 'TeX-fold-auto-reveal-commands func))
+  (setq-local tex-parens--saved-beginning-of-defun-function
+              beginning-of-defun-function)
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
-  (setq-local transpose-sexps-default-function
+  (setq-local tex-parens--saved-transpose-sexps-function
+              transpose-sexps-function)
+  (setq-local transpose-sexps-function
               #'tex-parens-transpose-sexps-default-function)
-  (setq end-of-defun-function #'tex-parens--end-of-defun)
+  (setq-local tex-parens--saved-end-of-defun-function
+              end-of-defun-function)
+  (setq-local end-of-defun-function #'tex-parens--end-of-defun)
   (setq tex-parens--pairs (tex-parens--generate-pairs))
   (setq tex-parens--pairs-swap
         (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens--pairs))
@@ -240,6 +237,36 @@ form delimiters which are visibly `left'/`opening' or
 
   ;; (setq-local forward-sexp-function #'tex-parens-forward-sexp)
   )
+
+;;;###autoload
+(define-minor-mode tex-parens-mode
+  "Toggle tex-parens mode.
+Tex Parens mode is a minor mode in which lisp/sexp/defun-based commands
+are adapted to tex environments and math delimiters.  The affected
+commands include, for instance, `forward-sexp', `forward-list' and
+`beginning-of-defun'."
+  :lighter nil
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map [remap forward-sexp] #'tex-parens-forward-sexp)
+            (define-key map [remap backward-sexp] #'tex-parens-backward-sexp)
+            (define-key map [remap forward-list] #'tex-parens-forward-list)
+            (define-key map [remap backward-list] #'tex-parens-backward-list)
+            (define-key map [remap backward-up-list] #'tex-parens-backward-up-list)
+            (define-key map [remap up-list] #'tex-parens-up-list)
+            (define-key map [remap down-list] #'tex-parens-down-list)
+            (define-key map [remap delete-pair] #'tex-parens-delete-pair)
+            (define-key map [remap mark-sexp] #'tex-parens-mark-sexp)
+            (define-key map [remap kill-sexp] #'tex-parens-kill-sexp)
+            (define-key map [remap backward-kill-sexp] #'tex-parens-backward-kill-sexp)
+            (define-key map [remap raise-sexp] #'tex-parens-raise-sexp)
+            map)
+  (cond
+   (tex-parens-mode
+    (tex-parens-setup))
+   (t
+    (setq-local beginning-of-defun-function tex-parens--saved-beginning-of-defun-function)
+    (setq-local transpose-sexps-function tex-parens--saved-transpose-sexps-function)
+    (setq-local end-of-defun-function tex-parens--saved-end-of-defun-function))))
 
 (defcustom tex-parens-search-limit 10000
   "How far to search for a delimiter, in either direction.
