@@ -161,7 +161,6 @@ form delimiters which are visibly `left'/`opening' or
 (defvar tex-parens--regexp-reverse+ nil)
 
 (defvar tex-parens--saved-beginning-of-defun-function nil)
-(defvar tex-parens--saved-transpose-sexps-function nil)
 (defvar tex-parens--saved-end-of-defun-function nil)
 
 (defun tex-parens-setup ()
@@ -181,10 +180,6 @@ form delimiters which are visibly `left'/`opening' or
   (setq-local tex-parens--saved-beginning-of-defun-function
               beginning-of-defun-function)
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
-  (setq-local tex-parens--saved-transpose-sexps-function
-              transpose-sexps-function)
-  (setq-local transpose-sexps-function
-              #'tex-parens-transpose-sexps-default-function)
   (setq-local tex-parens--saved-end-of-defun-function
               end-of-defun-function)
   (setq-local end-of-defun-function #'tex-parens--end-of-defun)
@@ -258,6 +253,7 @@ commands include, for instance, `forward-sexp', `forward-list' and
             (define-key map [remap mark-sexp] #'tex-parens-mark-sexp)
             (define-key map [remap kill-sexp] #'tex-parens-kill-sexp)
             (define-key map [remap backward-kill-sexp] #'tex-parens-backward-kill-sexp)
+            (define-key map [remap transpose-sexps] #'tex-parens-transpose-sexps)
             (define-key map [remap raise-sexp] #'tex-parens-raise-sexp)
             map)
   (cond
@@ -265,7 +261,6 @@ commands include, for instance, `forward-sexp', `forward-list' and
     (tex-parens-setup))
    (t
     (setq-local beginning-of-defun-function tex-parens--saved-beginning-of-defun-function)
-    (setq-local transpose-sexps-function tex-parens--saved-transpose-sexps-function)
     (setq-local end-of-defun-function tex-parens--saved-end-of-defun-function))))
 
 (defcustom tex-parens-search-limit 10000
@@ -826,9 +821,10 @@ report errors as appropriate for this kind of usage."
   (interactive "p\nd")
   (tex-parens-kill-sexp (- (or arg 1)) interactive))
 
-(defun tex-parens-transpose-sexps-default-function (arg)
-  "Default method to locate a pair of points for `transpose-sexps'.
-ARG is as in the docstring for `transpose-sexps'."
+(defun tex-parens-transpose-sexps-function (arg)
+  "Default method to locate a pair of points for
+`tex-parens-transpose-sexps'.  ARG is as in the docstring for
+`tex-parens-transpose-sexps'."
   ;; Here we should try to simulate the behavior of
   ;; (cons (progn (forward-sexp x) (point))
   ;;       (progn (forward-sexp (- x)) (point)))
@@ -859,6 +855,23 @@ ARG is as in the docstring for `transpose-sexps'."
                                                    #'skip-syntax-backward)
                                                  ".")))))
                  (point)))))
+
+(defun tex-parens-transpose-sexps (arg &optional interactive)
+  "Like \\[transpose-chars] (`transpose-chars'), but applies to sexps.
+Unlike `transpose-words', point must be between the two sexps and not
+in the middle of a sexp to be transposed.
+With non-zero prefix arg ARG, effect is to take the sexp before point
+and drag it forward past ARG other sexps (backward if ARG is negative).
+If ARG is zero, the sexps ending at or after point and at or after mark
+are interchanged.
+If INTERACTIVE is non-nil, as it is interactively,
+report errors as appropriate for this kind of usage."
+  (interactive "*p\nd")
+  (if interactive
+      (condition-case nil
+          (tex-parens-transpose-sexps arg nil)
+        (scan-error (user-error "Not between two complete sexps")))
+    (transpose-subr #'tex-parens-transpose-sexps-function arg 'special)))
 
 (defun tex-parens-raise-sexp (&optional n)
   "Raise N sexps one level higher up the tree.
