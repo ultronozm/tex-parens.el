@@ -711,8 +711,6 @@ Search up to BOUND.  Return t if successful, nil otherwise."
       (setq success t))
     (unless success
       (goto-char start))
-    (when (fboundp 'preview-move-point)
-      (preview-move-point))
     success))
 
 (defun tex-parens--backward-down-list-1 (&optional bound)
@@ -728,8 +726,6 @@ Search up to BOUND.  Return t if successful, nil otherwise."
       (setq success t))
     (unless success
       (goto-char start))
-    (when (fboundp 'preview-move-point)
-      (preview-move-point))
     success))
 
 (defun tex-parens-delete-pair ()
