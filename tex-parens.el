@@ -246,22 +246,27 @@ commands include, for instance, `forward-sexp', `forward-list' and
             (define-key map [remap backward-sexp] #'tex-parens-backward-sexp)
             (define-key map [remap forward-list] #'tex-parens-forward-list)
             (define-key map [remap backward-list] #'tex-parens-backward-list)
-            (define-key map [remap backward-up-list] #'tex-parens-backward-up-list)
+            (define-key map [remap backward-up-list]
+                        #'tex-parens-backward-up-list)
             (define-key map [remap up-list] #'tex-parens-up-list)
             (define-key map [remap down-list] #'tex-parens-down-list)
             (define-key map [remap delete-pair] #'tex-parens-delete-pair)
             (define-key map [remap mark-sexp] #'tex-parens-mark-sexp)
             (define-key map [remap kill-sexp] #'tex-parens-kill-sexp)
-            (define-key map [remap backward-kill-sexp] #'tex-parens-backward-kill-sexp)
-            (define-key map [remap transpose-sexps] #'tex-parens-transpose-sexps)
+            (define-key map [remap backward-kill-sexp]
+                        #'tex-parens-backward-kill-sexp)
+            (define-key map [remap transpose-sexps]
+                        #'tex-parens-transpose-sexps)
             (define-key map [remap raise-sexp] #'tex-parens-raise-sexp)
             map)
   (cond
    (tex-parens-mode
     (tex-parens-setup))
    (t
-    (setq-local beginning-of-defun-function tex-parens--saved-beginning-of-defun-function)
-    (setq-local end-of-defun-function tex-parens--saved-end-of-defun-function))))
+    (setq-local beginning-of-defun-function
+                tex-parens--saved-beginning-of-defun-function)
+    (setq-local end-of-defun-function
+                tex-parens--saved-end-of-defun-function))))
 
 (defcustom tex-parens-search-limit 10000
   "How far to search for a delimiter, in either direction.
