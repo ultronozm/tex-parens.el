@@ -5,7 +5,7 @@
 ;; Author: Paul D. Nelson <nelson.paul.david@gmail.com>
 ;; Version: 0.4
 ;; URL: https://github.com/ultronozm/tex-parens.el
-;; Package-Requires: ((emacs "27.1") (auctex "14.0.5"))
+;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: tex, convenience
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -39,9 +39,6 @@
 ;;   (TeX-mode . tex-parens-mode))
 
 ;;; Code:
-
-(require 'tex-fold)
-(require 'preview)
 
 (defgroup tex-parens ()
   "Like lisp.el but for tex."
@@ -164,19 +161,26 @@ form delimiters which are visibly `left'/`opening' or
 (defvar tex-parens--saved-end-of-defun-function nil)
 
 (defun tex-parens-setup ()
-  "Set up tex-parens.  Intended as a hook for `LaTeX-mode'."
-  (dolist (func '(tex-parens-down-list
-                  tex-parens-backward-down-list))
-    (add-to-list 'preview-auto-reveal-commands func))
-  (dolist (func '(tex-parens-down-list
-                  tex-parens-backward-down-list
-                  tex-parens-up-list
-                  tex-parens-backward-up-list
-                  tex-parens-forward-list
-                  tex-parens-backward-list
-                  tex-parens-forward-sexp
-                  tex-parens-backward-sexp))
-    (add-to-list 'TeX-fold-auto-reveal-commands func))
+  "Set up tex-parens.  Intended as a hook for `tex-mode' or `TeX-mode'."
+
+  ;; If AUCTeX 14.0.5+ is installed, then we make some of the
+  ;; navigation commands automatically open previews and folds.
+  (when (boundp 'preview-auto-reveal-commands)
+    (dolist (func '(tex-parens-down-list
+                    tex-parens-backward-down-list))
+      (add-to-list 'preview-auto-reveal-commands func)))
+
+  (when (boundp 'TeX-fold-auto-reveal-commands)
+    (dolist (func '(tex-parens-down-list
+                    tex-parens-backward-down-list
+                    tex-parens-up-list
+                    tex-parens-backward-up-list
+                    tex-parens-forward-list
+                    tex-parens-backward-list
+                    tex-parens-forward-sexp
+                    tex-parens-backward-sexp))
+      (add-to-list 'TeX-fold-auto-reveal-commands func)))
+
   (setq-local tex-parens--saved-beginning-of-defun-function
               beginning-of-defun-function)
   (setq-local beginning-of-defun-function #'tex-parens--beginning-of-defun)
@@ -466,7 +470,6 @@ Check that OTHER is non-nil.  This should always be the case.  Then, if
 debugging is enabled, check whether STACK-TOP and DELIM coincide.
 Sometimes this is intentional (e.g., when `\\right.'  terminates
 `\\left{'), so we do not treat it as an error."
-  (cl-assert other)
   (when tex-parens--debug
     (unless (equal other stack-top)
       (message "Mismatched delimiters: %s %s" stack-top delim))))
