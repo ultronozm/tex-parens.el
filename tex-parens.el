@@ -279,8 +279,7 @@ theorem-like environments to which you care about applying the
 list and sexp-based navigation commands.  Longer environments
 typically occur at the top level and are best navigated using the
 defun-based commands."
-  :type 'integer
-  :group 'tex-parens)
+  :type 'integer)
 
 (defun tex-parens--math-face ()
   "Return the number of math face modifiers at point.
@@ -301,8 +300,7 @@ defun-based commands."
 
 (defcustom tex-parens-ignore-comments t
   "Whether to ignore comments when searching for delimiters."
-  :type 'boolean
-  :group 'tex-parens)
+  :type 'boolean)
 
 (defun tex-parens--ignore (str begin end)
   "Check if STR should be ignored.
