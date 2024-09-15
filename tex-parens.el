@@ -299,19 +299,6 @@ defun-based commands."
         total))
      (t 0))))
 
-(defun tex-parens--comment ()
-  "Return t if point is in a comment environment."
-  (let ((comment-faces '(font-lock-comment-face
-                         ;; font-latex-verbatim-face
-                         ))
-        (face (plist-get (text-properties-at (point))
-                         'face)))
-    (or
-     (memq face comment-faces)
-     (and
-      (listp face)
-      (seq-some (lambda (f) (memq f comment-faces)) face)))))
-
 (defcustom tex-parens-ignore-comments t
   "Whether to ignore comments when searching for delimiters."
   :type 'boolean
@@ -326,7 +313,7 @@ double prime in math mode, then ignore it.  If STR is a dollar delimiter
 that does not demarcate math mode, then ignore it."
   (or (and tex-parens-ignore-comments
            (save-excursion (goto-char begin)
-                           (tex-parens--comment)))
+                           (nth 4 (syntax-ppss))))
       (and (equal str "''")
            (save-excursion (goto-char begin)
                            (> (tex-parens--math-face) 0)))
