@@ -1068,5 +1068,17 @@ Otherwise, call `self-insert-command'."
       (setq last (point))
       (tex-parens-forward-sexp))))
 
+(defun tex-parens-kill-to-end-of-list ()
+  "Kill text between point and end of current list."
+  (interactive)
+  (let ((end (save-excursion (tex-parens-end-of-list) (point))))
+    (kill-region (point) end)))
+
+(defun tex-parens-kill-to-beginning-of-list ()
+  "Kill text between point and beginning of current list."
+  (interactive)
+  (let ((beginning (save-excursion (tex-parens-beginning-of-list) (point))))
+    (kill-region beginning (point))))
+
 (provide 'tex-parens)
 ;;; tex-parens.el ends here
