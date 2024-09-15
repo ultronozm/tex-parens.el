@@ -1080,5 +1080,48 @@ Otherwise, call `self-insert-command'."
   (let ((beginning (save-excursion (tex-parens-beginning-of-list) (point))))
     (kill-region beginning (point))))
 
+;;; Avy integration
+
+(defcustom tex-parens-avy-regexp
+  "\\(. \\$\\|..\n[[:space:]]*\\\\begin{\\(eq\\|ali\\)\\)"
+  "Regular expression for `tex-parens-avy-jump-to-math'.
+This regexp should match the start of inline math expressions
+and equation environments."
+  :type 'regexp
+  :group 'tex-parens)
+
+(defun tex-parens-avy-jump-to-math ()
+  "Jump inside a math expression using Avy.
+This function uses `tex-parens-avy-regexp' to identify potential math
+expressions, then jumps to the selected one and moves point inside the
+expression."
+  (interactive)
+  (if (fboundp 'avy-jump)
+      (avy-jump tex-parens-avy-regexp
+                :action (lambda (pos)
+                          (goto-char pos)
+                          (forward-char 2)
+                          (tex-parens-down-list)
+                          ;; For preview-auto-reveal:
+                          (setq this-command #'tex-parens-down-list)))
+    (user-error "Avy is not available.  Please install and load it to use this function")))
+
+(defun tex-parens-avy-copy-math ()
+  "Copy a math expression selected using Avy.
+This function uses `tex-parens-avy-regexp' to identify potential math
+expressions, then copies the selected one to the kill ring."
+  (interactive)
+  (if (fboundp 'avy-jump)
+      (avy-jump tex-parens-avy-regexp
+                :action (lambda (pos)
+                          (let ((beg (+ pos 2))
+                                (end (save-excursion
+                                       (goto-char (+ pos 2))
+                                       (tex-parens-forward-list)
+                                       (point))))
+                            (copy-region-as-kill beg end)
+                            (message "Math expression copied"))))
+    (user-error "Avy is not available.  Please install and load it to use this function")))
+
 (provide 'tex-parens)
 ;;; tex-parens.el ends here
