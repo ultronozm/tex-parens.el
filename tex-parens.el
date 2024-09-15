@@ -1081,12 +1081,20 @@ Otherwise, call `self-insert-command'."
 ;;; Avy integration
 
 (defcustom tex-parens-avy-regexp
-  "\\(. \\$\\|..\n[[:space:]]*\\\\begin{\\(eq\\|ali\\)\\)"
+  (rx (or
+       (seq (= 2 anything) "$$")
+       (seq (= 2 anything) "\\(")
+       (seq (= 2 anything) "\\[")
+       (seq anything " $")
+       (seq (= 2 anything)
+            "\n"
+            (zero-or-more space)
+            "\\begin{"
+            (or "eq" "ali" "multline" "gath"))))
   "Regular expression for `tex-parens-avy-jump-to-math'.
-This regexp should match the start of inline math expressions
-and equation environments."
-  :type 'regexp
-  :group 'tex-parens)
+This regexp matches the start of various math environments, keeping a
+couple of characters before the primary match to leave space for Avy."
+  :type 'regexp)
 
 (defun tex-parens-avy-jump-to-math ()
   "Jump inside a math expression using Avy.
