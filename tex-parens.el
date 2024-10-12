@@ -212,7 +212,7 @@ form delimiters which are visibly `left'/`opening' or
                 "\\|\\\\[a-zA-Z]+{"))
   (setq tex-parens--regexp-open+
         (concat
-         "\\|\\\\begin{[^}]+}\\[[^]]+\\]"
+         "\\\\begin{[^}]+}\\[[^]]+\\]\\|"
          tex-parens--regexp-open))
   (setq tex-parens--regexp-close
         (concat (regexp-opt (mapcar #'cdr tex-parens--pairs))
