@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024  Free Software Foundation, Inc.
 
 ;; Author: Paul D. Nelson <nelson.paul.david@gmail.com>
-;; Version: 0.5
+;; Version: 0.6
 ;; URL: https://github.com/ultronozm/tex-parens.el
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: tex, convenience
