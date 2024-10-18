@@ -1,4 +1,4 @@
-;;; tex-parens.el --- like lisp.el but for tex  -*- lexical-binding: t; -*-
+;;; tex-parens.el --- Like lisp.el, but for tex  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024  Free Software Foundation, Inc.
 
@@ -40,8 +40,10 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'rx))
+
 (defgroup tex-parens ()
-  "Like lisp.el but for tex."
+  "Navigation and editing commands for TeX environments and delimiters."
   :group 'tex)
 
 (defun tex-parens--beginning-of-defun ()
@@ -64,7 +66,7 @@ Here `defun' means top-level environment."
     ("\\lfloor" . "\\rfloor")
     ("\\lceil" . "\\rceil"))
   "Left/right pairs of delimiters."
-  :type '(repeat (cons string string)))
+  :type '(repeat (cons (string :tag "Left pair") (string :tag "Right pair"))))
 
 (defcustom tex-parens-solo-delimiters
   '("|" "\\|" "\\vert" "\\Vert")
@@ -78,7 +80,7 @@ Here `defun' means top-level environment."
     ("\\biggl" . "\\biggr")
     ("\\Biggl" . "\\Biggr"))
   "Left/right pairs of delimiter modifiers."
-  :type '(repeat (cons string string)))
+  :type '(repeat (cons (string :tag "Left pair") (string :tag "Right pair"))))
 
 (defcustom tex-parens-solo-modifiers
   '("\\big" "\\Big" "\\bigg" "\\Bigg")
@@ -92,29 +94,26 @@ Here `defun' means top-level environment."
     ("\\[" . "\\]")
     ("\\left." . "\\right."))
   "Left/right delimiters not to be combined with modifiers."
-  :type '(repeat (cons string string)))
+  :type '(repeat (cons (string :tag "Left pair") (string :tag "Right pair"))))
 
 (defcustom tex-parens-max-delim-length 50
   "Maximum length of a delimiter.
 This is comfortably larger than `\\biggl\\langle' and
-`\\begin{proposition}', for example."
-  :type 'integer)
+  `\\begin{proposition}', for example."
+  :type 'natnum)
 
 (defun tex-parens--reduce-append (func list1 list2)
   "List consisting of FUNC applied to pairs from LIST1 and LIST2."
-  (seq-reduce #'append
-              (mapcar (lambda (item1)
-                        (mapcar (lambda (item2)
-                                  (funcall func item1 item2))
-                                list2))
-                      list1)
-              nil))
+  (mapcan (lambda (item1)
+            (mapcar (lambda (item2)
+                      (funcall func item1 item2))
+                    list2))
+          list1))
 
 (defun tex-parens--generate-pairs ()
   "Generate list of left/right pairs of delimiters.
-With the exception of the math delimiters `$' and `$$', we only
-form delimiters which are visibly `left'/`opening' or
-`right'/`closing'."
+With the exception of the math delimiters `$' and `$$', we only form
+delimiters which are visibly `left'/`opening' or `right'/`closing'."
   (let ((unambiguous-parens tex-parens-left-right-delimiter-pairs)
         (ambiguous-parens tex-parens-solo-delimiters)
         (unambiguous-modifiers tex-parens-left-right-modifier-pairs)
@@ -166,19 +165,19 @@ form delimiters which are visibly `left'/`opening' or
   ;; If AUCTeX 14.0.5+ is installed, then we make some of the
   ;; navigation commands automatically open previews and folds.
   (when (boundp 'preview-auto-reveal-commands)
-    (dolist (func '(tex-parens-down-list
-                    tex-parens-backward-down-list))
+    (dolist (func (list #'tex-parens-down-list
+			                     #'tex-parens-backward-down-list))
       (add-to-list 'preview-auto-reveal-commands func)))
 
   (when (boundp 'TeX-fold-auto-reveal-commands)
-    (dolist (func '(tex-parens-down-list
-                    tex-parens-backward-down-list
-                    tex-parens-up-list
-                    tex-parens-backward-up-list
-                    tex-parens-forward-list
-                    tex-parens-backward-list
-                    tex-parens-forward-sexp
-                    tex-parens-backward-sexp))
+    (dolist (func (list #'tex-parens-down-list
+			                     #'tex-parens-backward-down-list
+			                     #'tex-parens-up-list
+			                     #'tex-parens-backward-up-list
+			                     #'tex-parens-forward-list
+			                     #'tex-parens-backward-list
+			                     #'tex-parens-forward-sexp
+			                     #'tex-parens-backward-sexp))
       (add-to-list 'TeX-fold-auto-reveal-commands func)))
 
   (setq-local tex-parens--saved-beginning-of-defun-function
@@ -190,8 +189,8 @@ form delimiters which are visibly `left'/`opening' or
   (setq tex-parens--pairs (tex-parens--generate-pairs))
   (setq tex-parens--pairs-swap
         (mapcar (lambda (x) (cons (cdr x) (car x))) tex-parens--pairs))
-  (setq tex-parens--delims (append (mapcar #'car tex-parens--pairs)
-                                   (mapcar #'cdr tex-parens--pairs)))
+  (setq tex-parens--delims (nconc (mapcar #'car tex-parens--pairs)
+                                  (mapcar #'cdr tex-parens--pairs)))
 
   (setq tex-parens--regexp
         (concat
@@ -237,6 +236,24 @@ form delimiters which are visibly `left'/`opening' or
   ;; (setq-local forward-sexp-function #'tex-parens-forward-sexp)
   )
 
+(defvar tex-parens-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap forward-sexp] #'tex-parens-forward-sexp)
+    (define-key map [remap backward-sexp] #'tex-parens-backward-sexp)
+    (define-key map [remap forward-list] #'tex-parens-forward-list)
+    (define-key map [remap backward-list] #'tex-parens-backward-list)
+    (define-key map [remap backward-up-list] #'tex-parens-backward-up-list)
+    (define-key map [remap up-list] #'tex-parens-up-list)
+    (define-key map [remap down-list] #'tex-parens-down-list)
+    (define-key map [remap delete-pair] #'tex-parens-delete-pair)
+    (define-key map [remap mark-sexp] #'tex-parens-mark-sexp)
+    (define-key map [remap kill-sexp] #'tex-parens-kill-sexp)
+    (define-key map [remap backward-kill-sexp] #'tex-parens-backward-kill-sexp)
+    (define-key map [remap transpose-sexps] #'tex-parens-transpose-sexps)
+    (define-key map [remap raise-sexp] #'tex-parens-raise-sexp)
+    map)
+  "Keymap for `tex-parens-mode'.")
+
 ;;;###autoload
 (define-minor-mode tex-parens-mode
   "Toggle tex-parens mode.
@@ -244,25 +261,7 @@ Tex Parens mode is a minor mode in which lisp/sexp/defun-based commands
 are adapted to tex environments and math delimiters.  The affected
 commands include, for instance, `forward-sexp', `forward-list' and
 `beginning-of-defun'."
-  :lighter nil
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map [remap forward-sexp] #'tex-parens-forward-sexp)
-            (define-key map [remap backward-sexp] #'tex-parens-backward-sexp)
-            (define-key map [remap forward-list] #'tex-parens-forward-list)
-            (define-key map [remap backward-list] #'tex-parens-backward-list)
-            (define-key map [remap backward-up-list]
-                        #'tex-parens-backward-up-list)
-            (define-key map [remap up-list] #'tex-parens-up-list)
-            (define-key map [remap down-list] #'tex-parens-down-list)
-            (define-key map [remap delete-pair] #'tex-parens-delete-pair)
-            (define-key map [remap mark-sexp] #'tex-parens-mark-sexp)
-            (define-key map [remap kill-sexp] #'tex-parens-kill-sexp)
-            (define-key map [remap backward-kill-sexp]
-                        #'tex-parens-backward-kill-sexp)
-            (define-key map [remap transpose-sexps]
-                        #'tex-parens-transpose-sexps)
-            (define-key map [remap raise-sexp] #'tex-parens-raise-sexp)
-            map)
+  :keymap tex-parens-mode-map
   (cond
    (tex-parens-mode
     (tex-parens-setup))
@@ -400,15 +399,23 @@ delimiter.  Otherwise, return nil."
    (cdr (assoc delim tex-parens--pairs))
    (and
     (stringp delim)
-    (or
-     (and (or
-           (string-match "\\\\begin{\\([^}]+\\)}\\[[^]]+\\]" delim)
-           (string-match "\\\\begin{\\([^}]+\\)}" delim))
-          (let ((type (match-string 1 delim)))
-            (format "\\end{%s}" type)))
-     (unless (string-match "\\\\end{\\([^}]+\\)}" delim)
-       (and (string-match "\\\\[a-zA-Z]+\\[[^]]+\\]{\\|\\\\[a-zA-Z]+{" delim)
-            "}"))))))
+    (rx-let ((non-braces (one-or-more (not (any "}"))))
+             (non-brackets (one-or-more (not (any "]")))))
+      (cond
+       ;; Match \begin{...} with optional [...], return \end{...}
+       ((string-match (rx "\\begin{"
+                          (group non-braces)
+                          "}"
+                          (optional "[" non-brackets "]"))
+                      delim)
+        (format "\\end{%s}" (match-string 1 delim)))
+       ;; Match "\command[...]{" or "\command{", return "}"
+       ((and (not (string-match (rx "\\end{" non-braces "}") delim))
+             (string-match (rx "\\" (one-or-more alpha)
+                               (optional "[" non-brackets "]")
+                               "{")
+                           delim))
+        "}"))))))
 
 (defun tex-parens--open-of-close (delim)
   "Check if DELIM is closing, return the corresponding opening.
@@ -479,28 +486,44 @@ arg -N means move forward across N balanced groups."
   (interactive "^p")
   (tex-parens-forward-list (- (or arg 1))))
 
-(defun tex-parens--forward-list-1 (&optional bound)
-  "Move forward across one balanced group.
+(defun tex-parens--move-across-balanced-group (direction &optional bound)
+  "Move across one balanced group in DIRECTION (`forward' or `backward').
 Search up to BOUND."
   (interactive)
-  (unless bound (setq bound (tex-parens--forward-bound)))
-  (let ((start (point))
-        (delim (tex-parens--forward-delim bound))
-        (stack ())
-        success)
+  (unless bound
+    (setq bound (if (eq direction 'backward)
+                    (tex-parens--backward-bound)
+                  (tex-parens--forward-bound))))
+  (let* ((start (point))
+         (delim-func (if (eq direction 'backward)
+                         #'tex-parens--backward-delim
+                       #'tex-parens--forward-delim))
+         (search-func (if (eq direction 'backward)
+                          #'tex-parens--backward-search-found-close
+                        #'tex-parens--forward-search-found-open))
+         (move-func (if (eq direction 'backward)
+                        #'forward-char
+                      #'backward-char))
+         (delim (funcall delim-func bound))
+         (stack ())
+         success)
     (while delim
-      (if (tex-parens--forward-search-found-open delim)
+      (if (funcall search-func delim)
           (push delim stack)
         (if stack
             (progn
-              (tex-parens--check-match delim (tex-parens--open-of-close delim)
-                                       (car stack))
+              (tex-parens--check-match
+               delim
+               (if (eq direction 'backward)
+                   (tex-parens--close-of-open delim)
+                 (tex-parens--open-of-close delim))
+               (car stack))
               (pop stack)
               (unless stack
                 (setq success t)))
-          (backward-char (length delim))
+          (funcall move-func (length delim))
           (setq success t)))
-      (setq delim (and (not success) (tex-parens--forward-delim bound))))
+      (setq delim (and (not success) (funcall delim-func bound))))
     (unless success
       (goto-char start)
       (when tex-parens--debug
@@ -510,28 +533,14 @@ Search up to BOUND."
   "Move backward across one balanced group.
 Search up to BOUND."
   (interactive)
-  (unless bound (setq bound (tex-parens--backward-bound)))
-  (let ((start (point))
-        (delim (tex-parens--backward-delim bound))
-        (stack ())
-        success)
-    (while delim
-      (if (tex-parens--backward-search-found-close delim)
-          (push delim stack)
-        (if stack
-            (progn
-              (tex-parens--check-match delim (tex-parens--close-of-open delim)
-                                       (car stack))
-              (pop stack)
-              (unless stack
-                (setq success t)))
-          (forward-char (length delim))
-          (setq success t)))
-      (setq delim (and (not success) (tex-parens--backward-delim bound))))
-    (unless success
-      (goto-char start)
-      (when tex-parens--debug
-        (message "Unmatched delimiters: %s" (car stack))))))
+  (tex-parens--move-across-balanced-group 'backward bound))
+
+(defun tex-parens--forward-list-1 (&optional bound)
+  "Move forward across one balanced group.
+Search up to BOUND."
+  (interactive)
+  (tex-parens--move-across-balanced-group 'forward bound))
+
 
 (defun tex-parens-forward-sexp (&optional arg)
   "Move forward across one balanced expression (sexp).
@@ -811,8 +820,8 @@ report errors as appropriate for this kind of usage."
   (tex-parens-kill-sexp (- (or arg 1)) interactive))
 
 (defun tex-parens-transpose-sexps-function (arg)
-  "Default method to locate a pair of points for
-`tex-parens-transpose-sexps'.  ARG is as in the docstring for
+  "Default method to locate a pair of points.
+Used by `tex-parens-transpose-sexps'.  ARG is as in the docstring for
 `tex-parens-transpose-sexps'."
   ;; Here we should try to simulate the behavior of
   ;; (cons (progn (forward-sexp x) (point))
@@ -1096,38 +1105,43 @@ This regexp matches the start of various math environments, keeping a
 couple of characters before the primary match to leave space for Avy."
   :type 'regexp)
 
+(declare-function avy-jump "avy" (regex &rest _))
 (defun tex-parens-avy-jump-to-math ()
   "Jump inside a math expression using Avy.
 This function uses `tex-parens-avy-regexp' to identify potential math
 expressions, then jumps to the selected one and moves point inside the
 expression."
   (interactive)
-  (if (fboundp 'avy-jump)
-      (avy-jump tex-parens-avy-regexp
-                :action (lambda (pos)
-                          (goto-char pos)
-                          (forward-char 2)
-                          (tex-parens-down-list)
-                          ;; For preview-auto-reveal:
-                          (setq this-command #'tex-parens-down-list)))
-    (user-error "Avy is not available.  Please install and load it to use this function")))
+  (unless (and (fboundp 'avy-jump)
+	              (require 'avy nil t)
+	              (fboundp 'avy-jump))
+    (error "Avy is not available.  Please install it to use this function"))
+  (avy-jump tex-parens-avy-regexp
+            :action (lambda (pos)
+                      (goto-char pos)
+                      (forward-char 2)
+                      (tex-parens-down-list)
+                      ;; For preview-auto-reveal:
+                      (setq this-command #'tex-parens-down-list))))
 
 (defun tex-parens-avy-copy-math ()
   "Copy a math expression selected using Avy.
 This function uses `tex-parens-avy-regexp' to identify potential math
 expressions, then copies the selected one to the kill ring."
   (interactive)
-  (if (fboundp 'avy-jump)
-      (avy-jump tex-parens-avy-regexp
-                :action (lambda (pos)
-                          (let ((beg (+ pos 2))
-                                (end (save-excursion
-                                       (goto-char (+ pos 2))
-                                       (tex-parens-forward-list)
-                                       (point))))
-                            (copy-region-as-kill beg end)
-                            (message "Math expression copied"))))
-    (user-error "Avy is not available.  Please install and load it to use this function")))
+  (unless (and (fboundp 'avy-jump)
+	              (require 'avy nil t)
+	              (fboundp 'avy-jump))
+    (error "Avy is not available.  Please install it to use this function"))
+  (avy-jump tex-parens-avy-regexp
+            :action (lambda (pos)
+                      (let ((beg (+ pos 2))
+                            (end (save-excursion
+                                   (goto-char (+ pos 2))
+                                   (tex-parens-forward-list)
+                                   (point))))
+                        (copy-region-as-kill beg end)
+                        (message "Math expression copied")))))
 
 (provide 'tex-parens)
 ;;; tex-parens.el ends here
