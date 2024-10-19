@@ -1,6 +1,6 @@
 ;;; tex-paren-tests.el --- Tests for tex-parens.el   -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Paul D. Nelson
+;; Copyright (C) 2024  Free Software Foundation, Inc.
 
 ;; Author: Paul D. Nelson <nelson.paul.david@gmail.com>
 
