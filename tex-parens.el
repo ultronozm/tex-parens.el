@@ -1112,8 +1112,7 @@ This function uses `tex-parens-avy-regexp' to identify potential math
 expressions, then jumps to the selected one and moves point inside the
 expression."
   (interactive)
-  (unless (and (fboundp 'avy-jump)
-	              (require 'avy nil t)
+  (unless (and (require 'avy nil t)
 	              (fboundp 'avy-jump))
     (error "Avy is not available.  Please install it to use this function"))
   (avy-jump tex-parens-avy-regexp
@@ -1129,9 +1128,8 @@ expression."
 This function uses `tex-parens-avy-regexp' to identify potential math
 expressions, then copies the selected one to the kill ring."
   (interactive)
-  (unless (and (fboundp 'avy-jump)
-	              (require 'avy nil t)
-	              (fboundp 'avy-jump))
+  (unless (and (require 'avy nil t)
+               (fboundp 'avy-jump))
     (error "Avy is not available.  Please install it to use this function"))
   (avy-jump tex-parens-avy-regexp
             :action (lambda (pos)
