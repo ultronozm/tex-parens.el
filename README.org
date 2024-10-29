@@ -64,7 +64,7 @@ For finer control over how keys are bound, you can avoid =tex-parens-mode= and i
   (TeX-mode . tex-parens-setup))
 #+end_src
 
-The precise use-package declaration that I use may be found in [[https://github.com/ultronozm/emacsd/blob/main/init-latex.el][the LaTeX part of my config]] (elpaca branch).
+The precise use-package declaration that I use may be found in [[https://github.com/ultronozm/emacsd/blob/main/init.el][my config]].
 
 Use =M-x customize-group tex-parens= to configure further.  If you tweak the customization variables concerning delimiters and modifiers, then you'll need to reload your tex file, reset the minor mode, or do =M-: (tex-parens-setup)= for the changes to take effect.
 
