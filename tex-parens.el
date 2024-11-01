@@ -313,7 +313,12 @@ that does not demarcate math mode, then ignore it."
                            (nth 4 (syntax-ppss))))
       (and (equal str "''")
            (save-excursion (goto-char begin)
-                           (> (tex-parens--math-face) 0)))
+                           (and (> (tex-parens--math-face) 0)
+                                ;; Improved check for double prime
+                                ;; when texmathp is available.
+                                (if (fboundp 'texmathp)
+                                    (texmathp)
+                                  t))))
       (and (member str '("$" "$$"))
            (equal (save-excursion (goto-char (1- begin))
                                   (tex-parens--math-face))
