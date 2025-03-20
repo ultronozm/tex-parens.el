@@ -155,6 +155,8 @@ delimiters which are visibly `left'/`opening' or `right'/`closing'."
 (defvar tex-parens--regexp-close nil)
 (defvar tex-parens--regexp-reverse nil)
 (defvar tex-parens--regexp-reverse+ nil)
+(defvar tex-parens--left-modifier-regexp nil)
+(defvar tex-parens--left-delimiter-regexp nil)
 
 (defvar tex-parens--saved-beginning-of-defun-function nil)
 (defvar tex-parens--saved-end-of-defun-function nil)
@@ -226,6 +228,10 @@ delimiters which are visibly `left'/`opening' or `right'/`closing'."
   (setq tex-parens--regexp-reverse+
         (concat "\\][^[]+\\[}[^{]+{nigeb\\\\\\|"
                 tex-parens--regexp-reverse))
+  (setq tex-parens--left-modifier-regexp
+        (regexp-opt (mapcar #'car tex-parens-left-right-modifier-pairs)))
+  (setq tex-parens--left-delimiter-regexp
+        (regexp-opt (mapcar #'car tex-parens-left-right-delimiter-pairs)))
 
   ;; It would be natural to uncomment the following line, but I had
   ;; problems with it at some point, perhaps related to the fact that
@@ -1154,6 +1160,56 @@ expressions, then copies the selected one to the kill ring."
                                    (point))))
                         (copy-region-as-kill beg end)
                         (message "Math expression copied")))))
+
+
+(defun tex-parens-adjust-delimiter-size (direction)
+  "Adjust size of the delimiter at point.
+The symbol DIRECTION is either `increase' or `decrease'.  Point must be
+at the beginning of a left delimiter."
+  (interactive)
+  (when (looking-at (concat "\\(" tex-parens--left-modifier-regexp "\\)?\\("
+                            tex-parens--left-delimiter-regexp "\\)"))
+    (let* ((start-pos (point))
+           (left-modifier (or (match-string-no-properties 1) ""))
+           (left-modifier-sequence
+            (cons "" (mapcar #'car tex-parens-left-right-modifier-pairs)))
+           (index (seq-position left-modifier-sequence left-modifier))
+           (next-index
+            (if (eq direction 'increase)
+                (min (1+ index)
+                     (1- (length left-modifier-sequence)))
+              (max (1- index) 0)))
+           (next-left-modifier (seq-elt left-modifier-sequence next-index))
+           (right-modifier
+            (or (cdr (assoc left-modifier tex-parens-left-right-modifier-pairs))
+                ""))
+           (next-right-modifier
+            (or (cdr (assoc next-left-modifier
+                            tex-parens-left-right-modifier-pairs))
+                "")))
+      (save-excursion
+        (tex-parens-forward-list)
+        (tex-parens-backward-down-list)
+        (delete-region (point) (+ (point) (length right-modifier)))
+        (insert next-right-modifier))
+      (delete-region (point) (+ (point) (length left-modifier)))
+      (insert next-left-modifier)
+      (goto-char start-pos))))
+
+(defun tex-parens-decrease-delimiter-size ()
+  "Decrease the size of the delimiter at point.
+Cycles through modifier sizes in reverse: \\Bigl(\\Bigr) →
+\\bigl(\\bigr) → () etc.  Point should be at the beginning of the
+opening delimiter."
+  (interactive)
+  (tex-parens-adjust-delimiter-size 'decrease))
+
+(defun tex-parens-increase-delimiter-size ()
+  "Increase the size of the delimiter at point.
+Cycles through modifier sizes: () → \\bigl(\\bigr) → \\Bigl(\\Bigr) →
+etc.  Point should be at the beginning of the opening delimiter."
+  (interactive)
+  (tex-parens-adjust-delimiter-size 'increase))
 
 (provide 'tex-parens)
 ;;; tex-parens.el ends here

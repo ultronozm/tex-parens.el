@@ -85,3 +85,26 @@ There are additional commands that use Avy to jump to and copy math expressions:
 - =tex-parens-avy-copy-math=: Copy a math expression selected using Avy.
 
 To use these commands, make sure you have Avy installed and loaded, then bind them in your config as described above.
+
+** Adjusting Delimiter Size
+We provide the commands =tex-parens-increase-delimiter-size= and =tex-parens-decrease-delimiter-size= for adjusting delimiter sizes: =(...)= -> =\left(...\right)= -> =\bigl(...\bigr)= -> =...=.  These operate on the left delimiter at point.  It may be convenient to put them in a [[https://www.gnu.org/software/emacs/manual/html_node/use-package/Binding-to-repeat_002dmaps.html][repeat map]], which can be achieved by adding something like the following to your =use-package= declaration:
+
+#+begin_src elisp
+(use-package tex-parens
+  ;; ...
+  :bind
+  (:map
+   LaTeX-mode-map
+   ;; ...
+   ("C-c p =" . tex-parens-increase-delimiter-size)
+   ("C-c p -" . tex-parens-decrease-delimiter-size))
+  (:repeat-map
+   tex-parens-delimiter-size-repeat-map
+   ("=" . tex-parens-increase-delimiter-size)
+   ("-" . tex-parens-decrease-delimiter-size))
+  ;; ...
+  :config
+  ;; ...
+  (repeat-mode 1))
+#+end_src
+
