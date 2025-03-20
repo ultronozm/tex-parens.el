@@ -1063,22 +1063,31 @@ Otherwise, call `self-insert-command'."
   (tex-parens-backward-down-list))
 
 (defun tex-parens-beginning-of-list ()
-  "Move to the beginning of the current balanced group."
+  "Move to the beginning of the current balanced group.
+Pushes a mark at the starting position."
   (interactive)
-  (let ((last (point)))
+  (let ((origin (point))
+        (last (point)))
     (tex-parens-backward-sexp)
     (while (< (point) last)
       (setq last (point))
-      (tex-parens-backward-sexp))))
+      (tex-parens-backward-sexp))
+    (unless (= origin (point))
+      (push-mark origin t))))
 
 (defun tex-parens-end-of-list ()
-  "Move to the end of the current balanced group."
+  "Move to the end of the current balanced group.
+Pushes a mark at the starting position."
   (interactive)
-  (let ((last (point)))
+  (let ((origin (point))
+        (last (point)))
     (tex-parens-forward-sexp)
     (while (> (point) last)
       (setq last (point))
-      (tex-parens-forward-sexp))))
+      (tex-parens-forward-sexp))
+    (unless (= origin (point))
+      (push-mark origin t))))
+
 
 (defun tex-parens-kill-to-end-of-list ()
   "Kill text between point and end of current list."
