@@ -166,18 +166,18 @@ delimiters which are visibly `left'/`opening' or `right'/`closing'."
   ;; navigation commands automatically open previews and folds.
   (when (boundp 'preview-auto-reveal-commands)
     (dolist (func (list #'tex-parens-down-list
-			                     #'tex-parens-backward-down-list))
+                        #'tex-parens-backward-down-list))
       (add-to-list 'preview-auto-reveal-commands func)))
 
   (when (boundp 'TeX-fold-auto-reveal-commands)
     (dolist (func (list #'tex-parens-down-list
-			                     #'tex-parens-backward-down-list
-			                     #'tex-parens-up-list
-			                     #'tex-parens-backward-up-list
-			                     #'tex-parens-forward-list
-			                     #'tex-parens-backward-list
-			                     #'tex-parens-forward-sexp
-			                     #'tex-parens-backward-sexp))
+                        #'tex-parens-backward-down-list
+                        #'tex-parens-up-list
+                        #'tex-parens-backward-up-list
+                        #'tex-parens-forward-list
+                        #'tex-parens-backward-list
+                        #'tex-parens-forward-sexp
+                        #'tex-parens-backward-sexp))
       (add-to-list 'TeX-fold-auto-reveal-commands func)))
 
   (setq-local tex-parens--saved-beginning-of-defun-function
@@ -1127,7 +1127,7 @@ expressions, then jumps to the selected one and moves point inside the
 expression."
   (interactive)
   (unless (and (require 'avy nil t)
-	              (fboundp 'avy-jump))
+               (fboundp 'avy-jump))
     (error "Avy is not available.  Please install it to use this function"))
   (avy-jump tex-parens-avy-regexp
             :action (lambda (pos)
