@@ -337,7 +337,7 @@ Ignore matches that should be ignored.  Return the first match string
 found, or nil if none is found."
   (let (success done)
     (while (not done)
-      (if (re-search-forward regexp bound t)
+      (if (and (<= (point) bound) (re-search-forward regexp bound t))
           (when (not (tex-parens--ignore (match-string 0)
                                          (match-beginning 0)
                                          (match-end 0)))
@@ -352,7 +352,7 @@ found, or nil if none is found."
 Assumes that REGEXP-REVERSE is the reverse of REGEXP."
   (let (done success match)
     (while (not done)
-      (if (re-search-backward regexp bound t)
+      (if (and (>= (point) bound) (re-search-backward regexp bound t))
           (progn
             ;; find the longest match by applying the backward regexp
             ;; to the reversed text
@@ -368,8 +368,8 @@ Assumes that REGEXP-REVERSE is the reverse of REGEXP."
                 (setq match (reverse (match-string 0))))
               (backward-char (length match))
               (when (not (tex-parens--ignore match
-                                     (point)
-                                     (+ (point) (length match))))
+                                             (point)
+                                             (+ (point) (length match))))
                 (setq done t)
                 (setq success t))))
         ;; didn't find anything, so we failed
@@ -606,7 +606,7 @@ the previous delimiter, then do that.  Otherwise, do
 `tex-parens-backward-list'."
   (interactive)
   (let ((delim-end (save-excursion
-                     (when-let ((delim (tex-parens--backward-delim)))
+                     (when-let* ((delim (tex-parens--backward-delim)))
                        (forward-char (length delim))
                        (point))))
         (vanilla
@@ -917,8 +917,8 @@ and point is before (zot), \\[raise-sexp] will give you
 
 (defun tex-parens--slurp-left ()
   "Slurp the next sexp into the current one, to the left."
-  (when-let ((pos (point))
-             (match (when (looking-at tex-parens--regexp+) (match-string 0))))
+  (when-let* ((pos (point))
+              (match (when (looking-at tex-parens--regexp+) (match-string 0))))
     (delete-region (point) (+ (point) (length match)))
     (condition-case nil
         (progn
