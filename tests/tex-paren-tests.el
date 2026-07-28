@@ -206,6 +206,20 @@ commands behave as they would in real TeX buffers."  ; doc
     (tex-parens-burp-left)
     (should (equal (buffer-string) "\\left(a  b \\right)"))))
 
+(ert-deftest test-tex-parens-burp-left-barfs-last-sexp ()
+  "burp-left pushes the last sexp out of the delimiter pair."
+  (tex-parens-test-with-buffer "(a b)"
+    (goto-char (point-max))
+    (tex-parens-burp-left)
+    (should (equal (buffer-string) "(a) b"))))
+
+(ert-deftest test-tex-parens-burp-right-slurps-next-sexp ()
+  "burp-right pulls the following sexp into the delimiter pair."
+  (tex-parens-test-with-buffer "(a) b"
+    (search-forward ")")
+    (tex-parens-burp-right)
+    (should (equal (buffer-string) "(a b)"))))
+
 (ert-deftest test-tex-parens-adjust-delimiter-size ()
   "Adjusting delimiter size rewrites the modifier pair."
   (tex-parens-test-with-buffer "\\left( x \\right)"

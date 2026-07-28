@@ -989,11 +989,12 @@ and point is before (zot), \\[raise-sexp] will give you
                           (- (point) tex-parens-max-delim-length)))
               (text (buffer-substring bound pos))
               (reversed-text (reverse text))
+              (reverse-regexp tex-parens--regexp-reverse+)
               (reverse-match
                (with-temp-buffer
                  (insert reversed-text)
                  (goto-char (point-min))
-                 (when (looking-at tex-parens--regexp-reverse+)
+                 (when (looking-at reverse-regexp)
                    (match-string 0))))
               (match (reverse reverse-match)))
     (backward-char (length match))
@@ -1071,11 +1072,12 @@ Otherwise, call `self-insert-command'."
                           (- (point) tex-parens-max-delim-length)))
               (text (buffer-substring bound pos))
               (reversed-text (reverse text))
+              (reverse-regexp tex-parens--regexp-reverse+)
               (reverse-match
                (with-temp-buffer
                  (insert reversed-text)
                  (goto-char (point-min))
-                 (when (looking-at tex-parens--regexp-reverse+)
+                 (when (looking-at reverse-regexp)
                    (match-string 0))))
               (match (reverse reverse-match)))
     (condition-case nil
